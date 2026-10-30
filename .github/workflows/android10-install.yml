@@ -2,7 +2,8 @@ name: Android 10 - install APKs and screenshot
 
 # One job: starts real ARM Android 10 (Redroid container on GitHub's ARM runner), installs
 # 4bTech Space, the game (base.apk) and 4B-Rummy-Home, opens each one and takes screenshots.
-# Screenshots, the install log and the package list are uploaded as the artifact "screenshots".
+# Screenshots, the install log and the package list are uploaded as the artifact "screenshots"
+# and committed to this branch under screenshots/ with a page (screenshots/README.md) showing them.
 #
 # Secret PRIVATE_REPO (or GAME_AUTO_TOKEN): a token that can read the releases of the private repo
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
@@ -14,7 +15,7 @@ on:
       - .github/workflows/android10-install.yml
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   SPACE_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/4bTech-Space.apk
@@ -87,6 +88,25 @@ jobs:
           name: screenshots
           path: out
           retention-days: 7
+
+      - name: Publish screenshots page on this branch
+        if: always()
+        run: |
+          git clone -q --depth 1 --branch "$GITHUB_REF_NAME" \
+            "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY.git" site
+          rm -rf site/screenshots; mkdir -p site/screenshots; cp -r out/. site/screenshots/
+          {
+            echo "# Android 10 - install and screenshot"
+            echo
+            echo "Run [#$GITHUB_RUN_NUMBER]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID), $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo
+            echo '```'; cat out/notes.txt 2>/dev/null; echo '```'
+            for f in $(cd out && ls *.png 2>/dev/null); do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$f\" width=\"300\">"; done
+          } > site/screenshots/README.md
+          cd site
+          git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
+          git add screenshots
+          git commit -q -m "Screenshots from run #$GITHUB_RUN_NUMBER (Android 10)" && git push -q origin "HEAD:$GITHUB_REF_NAME" || echo "nothing to publish"
 
       - name: Fail if an install failed
         if: env.RC == '1'
