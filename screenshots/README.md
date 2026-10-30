@@ -1,26 +1,26 @@
 # Android 10 - install and screenshot
 
-Run [#13](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41114954452), 2026-10-30 19:28 UTC
+Run [#13](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41114954452), 2026-10-30 19:32 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{8ef0cab u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{57573ab u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{fe97d9e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{167b09e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{f9be84b u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1b4a90e u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s637ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s88ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
-  secrets: email 22 chars (22 trimmed), password 14 chars (14 trimmed)
+  secrets: email 22 chars (22 trimmed), password 13 chars (13 trimmed)
   backend https://4brummyhome.synoventum.us.cc/api/v1/auth/login: HTTP 400 error=invalid_request, message=The request body or query is not valid. 
-FAIL sign-in: Wrong email or password (screen: app.gameauto.phone/.AuthActivity)
+PASS signed in (app.gameauto.phone/.MainActivity)
 ```
 
 ## 0-home
@@ -47,9 +47,13 @@ FAIL sign-in: Wrong email or password (screen: app.gameauto.phone/.AuthActivity)
 
 <img src="12-app-open.png" width="300">
 
-## 13-after-fail-home
+## 13-signed-in
 
-<img src="13-after-fail-home.png" width="300">
+<img src="13-signed-in.png" width="300">
+
+## 14-signed-in-later
+
+<img src="14-signed-in-later.png" width="300">
 
 ## 2-base-1-appinfo
 
