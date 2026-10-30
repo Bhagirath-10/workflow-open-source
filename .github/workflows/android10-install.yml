@@ -2,17 +2,20 @@ name: Android 10 - install APKs and screenshot
 
 # One job: starts real ARM Android 10 (Redroid container on GitHub's ARM runner), installs
 # 4bTech Space, the game (base.apk) and 4B-Rummy-Home, opens each one and takes screenshots.
+# Then gives 4bTech Game its permissions and signs it in (scripts/bot-setup.sh).
 # Screenshots, the install log and the package list are uploaded as the artifact "screenshots"
 # and committed to this branch under screenshots/ with a page (screenshots/README.md) showing them.
 #
 # Secret PRIVATE_REPO (or GAME_AUTO_TOKEN): a token that can read the releases of the private repo
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
+# Secrets FOUR_BTECH_GAME_EMAIL / FOUR_BTECH_GAME_PASSWORD: the 4bTech Game sign-in.
 
 on:
   workflow_dispatch:
   push:
     paths:
       - .github/workflows/android10-install.yml
+      - scripts/**
 
 permissions:
   contents: write
@@ -29,6 +32,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download the APKs
         env:
           GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
@@ -93,6 +98,33 @@ jobs:
           adb shell pm list packages -3 | tr -d '\r' > out/packages.txt
           { echo '```'; cat out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           echo "RC=$RC" >> "$GITHUB_ENV"
+
+      - name: 4bTech Game - permissions and sign-in
+        if: env.RC == '0'
+        env:
+          FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
+          FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
+        run: |
+          bash scripts/bot-setup.sh out || echo "RC=1" >> "$GITHUB_ENV"
+          { echo '```'; sed -n '/## 4bTech Game/,$p' out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove credentials from the results
+        if: always()
+        env:
+          FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
+          FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
+        run: |
+          python3 -I - out <<'PY'
+          import os, pathlib, sys
+          secrets = [s for s in (os.environ.get("FOUR_BTECH_GAME_EMAIL"), os.environ.get("FOUR_BTECH_GAME_PASSWORD")) if s]
+          for f in pathlib.Path(sys.argv[1]).rglob("*"):
+              if f.is_file() and f.suffix in (".txt", ".xml", ".md"):
+                  t = f.read_text(errors="replace")
+                  for s in secrets:
+                      t = t.replace(s, "***")
+                  f.write_text(t)
+          PY
+          rm -f out/ui.xml
 
       - name: Upload screenshots
         if: always()
