@@ -1,24 +1,25 @@
 # Android 10 - install and screenshot
 
-Run [#10](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41113140369), 2026-10-30 19:14 UTC
+Run [#11](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41114247934), 2026-10-30 19:22 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{bc8f748 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{b2dd3f1 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{c2ab19 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{799cb3f u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{b0a9cb9 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{3ae65df u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s693ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s229ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
   secrets: email 22 chars (22 trimmed), password 14 chars (14 trimmed)
+  backend https://4brummyhome.synoventum.us.cc/auth/login: HTTP 404 error=not_found, message=Not found. 
 FAIL sign-in: Wrong email or password (screen: app.gameauto.phone/.AuthActivity)
 ```
 
