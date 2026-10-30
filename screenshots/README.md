@@ -1,26 +1,25 @@
 # Android 10 - install and screenshot
 
-Run [#7](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41110833671), 2026-10-30 18:58 UTC
+Run [#8](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41111453687), 2026-10-30 19:03 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{89131ea u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{6acc64c u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{2c18c90 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{647568 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{8f606ae u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{176c6a3 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s494ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s222ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
-  no field password
-  no field confirm
-PASS registered and signed in (app.gameauto.phone/.AuthActivity)
+  register: no message; trying sign-in
+FAIL sign-in:  (screen: app.gameauto.phone/.AuthActivity)
 ```
 
 ## 0-home
@@ -51,13 +50,9 @@ PASS registered and signed in (app.gameauto.phone/.AuthActivity)
 
 <img src="13-register-form.png" width="300">
 
-## 14-signed-in
+## 14-after-fail-home
 
-<img src="14-signed-in.png" width="300">
-
-## 15-signed-in-later
-
-<img src="15-signed-in-later.png" width="300">
+<img src="14-after-fail-home.png" width="300">
 
 ## 2-base-1-appinfo
 
