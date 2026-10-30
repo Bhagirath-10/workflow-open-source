@@ -4,7 +4,7 @@ name: Android 10 - install APKs and screenshot
 # 4bTech Space, the game (base.apk) and 4B-Rummy-Home, opens each one and takes screenshots.
 # Screenshots, the install log and the package list are uploaded as the artifact "screenshots".
 #
-# Secret GAME_AUTO_TOKEN: a token that can read the releases of the private repo
+# Secret PRIVATE_REPO (or GAME_AUTO_TOKEN): a token that can read the releases of the private repo
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
 
 on:
@@ -30,10 +30,10 @@ jobs:
     steps:
       - name: Download the APKs
         env:
-          GH_TOKEN: ${{ secrets.GAME_AUTO_TOKEN }}
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
         run: |
           mkdir -p apk out
-          [ -n "$GH_TOKEN" ] || { echo "::error::Secret GAME_AUTO_TOKEN is missing (needed for the private repo Bhautik-4B/Game-Auto)"; exit 1; }
+          [ -n "$GH_TOKEN" ] || { echo "::error::Secret PRIVATE_REPO is missing (needed for the private repo Bhautik-4B/Game-Auto)"; exit 1; }
           gh release download APK --repo Bhautik-4B/Game-Auto --pattern 4bTech-Space.apk --dir apk
           gh release download APK --repo Bhautik-4B/Game-Auto --pattern base.apk --dir apk
           curl -fsSL -o apk/4B-Rummy-Home.apk "$RUMMY_URL"
