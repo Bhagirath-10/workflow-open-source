@@ -102,7 +102,7 @@ fill email "$EMAIL"; fill password "$PASS"
 dump; cp "$OUT/ui.xml" "$OUT/ui-signin-filled.xml"
 tap id authGo; sleep 10; dump; cp "$OUT/ui.xml" "$OUT/ui-after-signin.xml"
 pid=$(adb shell pidof "$PKG" | tr -d '\r')
-[ -n "$pid" ] && adb logcat -d --pid="$pid" | tail -200 > "$OUT/app-log-signin.txt"
+[ -n "$pid" ] && adb logcat -d --pid="$pid" | grep -viE "token|bearer|authorization|cookie" | tail -200 > "$OUT/app-log-signin.txt"
 if signed_in; then say "PASS signed in ($(activity))"
 else
   # No screenshot here: the form shows the email.
