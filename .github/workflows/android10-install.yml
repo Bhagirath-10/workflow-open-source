@@ -8,7 +8,8 @@ name: Android 10 - install APKs and screenshot
 #
 # Secret PRIVATE_REPO (or GAME_AUTO_TOKEN): a token that can read the releases of the private repo
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
-# Secrets FOUR_BTECH_GAME_EMAIL / FOUR_BTECH_GAME_PASSWORD: the 4bTech Game sign-in.
+# Secrets FOUR_BTECH_GAME_EMAIL / FOUR_BTECH_GAME_PASSWORD: the 4bTech Game account (registered on
+# the phone first: the app keeps accounts on the phone only); optional FOUR_BTECH_GAME_NAME / _MOBILE.
 
 on:
   workflow_dispatch:
@@ -104,6 +105,8 @@ jobs:
         env:
           FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
           FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
+          FOUR_BTECH_GAME_NAME: ${{ secrets.FOUR_BTECH_GAME_NAME }}
+          FOUR_BTECH_GAME_MOBILE: ${{ secrets.FOUR_BTECH_GAME_MOBILE }}
         run: |
           bash scripts/bot-setup.sh out || echo "RC=1" >> "$GITHUB_ENV"
           { echo '```'; sed -n '/## 4bTech Game/,$p' out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
@@ -113,10 +116,12 @@ jobs:
         env:
           FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
           FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
+          FOUR_BTECH_GAME_NAME: ${{ secrets.FOUR_BTECH_GAME_NAME }}
+          FOUR_BTECH_GAME_MOBILE: ${{ secrets.FOUR_BTECH_GAME_MOBILE }}
         run: |
           python3 -I - out <<'PY'
           import os, pathlib, sys
-          secrets = [s for s in (os.environ.get("FOUR_BTECH_GAME_EMAIL"), os.environ.get("FOUR_BTECH_GAME_PASSWORD")) if s]
+          secrets = [s for s in (os.environ.get("FOUR_BTECH_GAME_" + k) for k in ("EMAIL", "PASSWORD", "MOBILE")) if s]
           for f in pathlib.Path(sys.argv[1]).rglob("*"):
               if f.is_file() and f.suffix in (".txt", ".xml", ".md"):
                   t = f.read_text(errors="replace")

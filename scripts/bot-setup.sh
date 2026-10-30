@@ -64,34 +64,48 @@ dump
 [ "$(find top)" = "$PKG" ] || { say "FAIL still not in the app (top: $(find top))"; shot stuck; exit 1; }
 say "  app version $(version)"
 shot app-open
-tap text "Sign in|SIGN IN|Login|LOG IN|Log in" && dump
-email_xy=$(find edit 0); pass_xy=$(find password)
-if [ -z "$email_xy" ] || [ -z "$pass_xy" ]; then
-  say "FAIL sign-in: no email/password fields on screen"; shot no-login-form; exit 1
-fi
-shot sign-in-form
-adb shell input tap $email_xy; sleep 1; type_secret "$FOUR_BTECH_GAME_EMAIL"
-adb shell input tap $pass_xy; sleep 1; type_secret "$FOUR_BTECH_GAME_PASSWORD"
-adb shell input keyevent KEYCODE_BACK; sleep 1   # hide the keyboard
+activity() { adb shell dumpsys activity activities | tr -d '\r' | grep -m1 mResumedActivity | grep -oE '[^ /]+/[^ }]+' | tail -1; }
+keyboard_down() { adb shell dumpsys input_method | tr -d '\r' | grep -q 'mInputShown=true' && adb shell input keyevent KEYCODE_BACK; sleep 1; }
+fill() {  # fill <id> <value>: types into the field with that id (screen is dumped again first)
+  local xy; dump; xy=$(find id "$1") || { say "  no field $1"; return 1; }
+  adb shell input tap $xy; sleep 1; type_secret "$2"; keyboard_down
+}
+signed_in() { ! activity | grep -q AuthActivity; }
+
+# The account lives on the phone only, so a new phone has none: register it first.
+# (No screenshots while the email is on screen: these results are public.)
+dump; tap id modeRegister; dump; shot register-form
+fill name "${FOUR_BTECH_GAME_NAME:-Bhautik}"
+fill email "$FOUR_BTECH_GAME_EMAIL"
+[ -n "${FOUR_BTECH_GAME_MOBILE:-}" ] && fill mobile "$FOUR_BTECH_GAME_MOBILE"
+fill password "$FOUR_BTECH_GAME_PASSWORD"
+fill confirm "$FOUR_BTECH_GAME_PASSWORD"
 dump
-# The submit button is the last "Sign in"-like node (the first one is the tab).
-xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
+# Tick "I agree": tap the left end of the row so the Terms/Privacy links are not hit.
+python3 -I - "$OUT/ui.xml" <<'PY' > "$OUT/agree.txt"
 import re, sys, xml.etree.ElementTree as ET
-hits = [n for n in ET.parse(sys.argv[1]).iter("node")
-        if re.fullmatch(r"(sign ?in|log ?in|continue|submit)", (n.get("text") or n.get("content-desc") or "").strip(), re.I)]
-if hits:
-    x1, y1, x2, y2 = map(int, re.findall(r"\d+", hits[-1].get("bounds"))); print((x1 + x2) // 2, (y1 + y2) // 2)
+for n in ET.parse(sys.argv[1]).iter("node"):
+    if n.get("resource-id", "").endswith(":id/agree"):
+        x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
+        print(x1 + (y2 - y1) // 2, (y1 + y2) // 2, n.get("checked")); break
 PY
-)
-[ -n "$xy" ] || { say "FAIL sign-in: no sign-in button"; shot no-button; exit 1; }
-adb shell input tap $xy; sleep 12
-dump; shot after-sign-in
-if find edit 0 >/dev/null && find password >/dev/null; then
-  say "FAIL sign-in: still on the sign-in screen (see after-sign-in screenshot)"; RC=1
+read -r ax ay checked < "$OUT/agree.txt"; rm -f "$OUT/agree.txt"
+[ -n "${ax:-}" ] && [ "$checked" != true ] && { adb shell input tap $ax $ay; sleep 1; }
+dump; tap id authGo; sleep 8; dump
+err=$(find idtext authError)
+if signed_in; then
+  say "PASS registered and signed in ($(activity))"
 else
-  say "PASS signed in (screen after sign-in: see screenshot)"; RC=0
+  say "  register: ${err:-no message}; trying sign-in"
+  # Already registered on this phone (or the app wants a sign-in after registering): sign in.
+  dump; tap id modeSignIn
+  fill email "$FOUR_BTECH_GAME_EMAIL"; fill password "$FOUR_BTECH_GAME_PASSWORD"
+  dump; tap id authGo; sleep 8; dump
+  if signed_in; then say "PASS signed in ($(activity))"
+  else say "FAIL sign-in: $(find idtext authError)"; adb shell input keyevent KEYCODE_HOME; exit 1
+  fi
 fi
-# Second look a bit later (first screen after sign-in may be a loading screen).
+shot signed-in
 sleep 10; dump; shot signed-in-later
 cp "$OUT/ui.xml" "$OUT/ui-last.xml"
-exit $RC
+exit 0

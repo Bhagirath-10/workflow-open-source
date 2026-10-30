@@ -3,6 +3,8 @@
   ui.py <dump.xml> text <regex>   centre "x y" of the first node whose text or description matches
   ui.py <dump.xml> edit <n>       centre of the n-th (0-based) text field
   ui.py <dump.xml> password       centre of the first password field
+  ui.py <dump.xml> id <name>      centre of the node with resource-id <package>:id/<name>
+  ui.py <dump.xml> idtext <name>  text of that node
   ui.py <dump.xml> top            package of the screen's first node
 Prints nothing (exit 1) when there is no match.
 """
@@ -26,6 +28,11 @@ def main():
         hits = [n for n in nodes if n.get("class") == "android.widget.EditText"][int(sys.argv[3]):]
     elif what == "password":
         hits = [n for n in nodes if n.get("password") == "true"]
+    elif what in ("id", "idtext"):
+        hits = [n for n in nodes if n.get("resource-id", "").endswith(":id/" + sys.argv[3])]
+        if hits and what == "idtext":
+            print(hits[0].get("text", ""))
+            return
     elif what == "top":
         print(nodes[0].get("package") if nodes else "")
         return
