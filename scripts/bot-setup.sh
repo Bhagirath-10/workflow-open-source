@@ -68,7 +68,9 @@ activity() { adb shell dumpsys activity activities | tr -d '\r' | grep -m1 mResu
 keyboard_down() { sleep 1; }  # no on-screen keyboard (turned off below), so nothing covers the form
 fill() {  # fill <id> <value>: types into the field with that id (screen is dumped again first)
   local xy; dump; xy=$(find id "$1") || { say "  no field $1"; return 1; }
-  adb shell input tap $xy; sleep 1; type_secret "$2"; keyboard_down
+  adb shell input tap $xy; sleep 1
+  adb shell input keyevent KEYCODE_MOVE_END $(printf 'KEYCODE_DEL %.0s' $(seq 1 60))  # clear what is there
+  type_secret "$2"; keyboard_down
 }
 # Signed in = some screen of the app other than the sign-in screen is in front.
 signed_in() { local a; a=$(activity); case "$a" in "$PKG"/*) [[ "$a" != *AuthActivity* ]];; *) return 1;; esac; }
@@ -94,7 +96,8 @@ for n in ET.parse(sys.argv[1]).iter("node"):
 PY
 read -r ax ay checked < "$OUT/agree.txt"; rm -f "$OUT/agree.txt"
 [ -n "${ax:-}" ] && [ "$checked" != true ] && { adb shell input tap $ax $ay; sleep 1; }
-dump; tap id authGo; sleep 8; dump
+dump; cp "$OUT/ui.xml" "$OUT/ui-register-filled.xml"
+tap id authGo; sleep 8; dump; cp "$OUT/ui.xml" "$OUT/ui-after-register.xml"
 err=$(find idtext authError)
 if signed_in; then
   say "PASS registered and signed in ($(activity))"
@@ -103,7 +106,8 @@ else
   # Already registered on this phone (or the app wants a sign-in after registering): sign in.
   dump; tap id modeSignIn
   fill email "$FOUR_BTECH_GAME_EMAIL"; fill password "$FOUR_BTECH_GAME_PASSWORD"
-  dump; tap id authGo; sleep 8; dump
+  dump; cp "$OUT/ui.xml" "$OUT/ui-signin-filled.xml"
+  tap id authGo; sleep 8; dump; cp "$OUT/ui.xml" "$OUT/ui-after-signin.xml"
   if signed_in; then say "PASS signed in ($(activity))"
   else
     # No screenshot here: the form shows the email.
