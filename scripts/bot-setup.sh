@@ -81,10 +81,28 @@ for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime
 EMAIL=$(printf '%s' "$FOUR_BTECH_GAME_EMAIL" | tr -d '[:space:]')
 PASS=$(printf '%s' "$FOUR_BTECH_GAME_PASSWORD" | tr -d '\r\n' | sed 's/^ *//; s/ *$//')
 say "  secrets: email ${#FOUR_BTECH_GAME_EMAIL} chars (${#EMAIL} trimmed), password ${#FOUR_BTECH_GAME_PASSWORD} chars (${#PASS} trimmed)"
+# Does the backend accept this account? (status and message only; tokens and secrets are never printed)
+API=https://4brummyhome.synoventum.us.cc
+body=$(python3 -I -c 'import json,sys; print(json.dumps({"email": sys.argv[1], "password": sys.argv[2]}))' "$EMAIL" "$PASS")
+code=$(curl -sS -m 20 -o "$OUT/api-login.json" -w '%{http_code}' -H 'Content-Type: application/json' -d "$body" "$API/auth/login" 2>"$OUT/api-login-err.txt")
+msg=$(python3 -I - "$OUT/api-login.json" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print(", ".join(f"{k}={v}" for k, v in d.items() if not any(w in k.lower() for w in ("token", "secret", "key", "jwt"))) [:300] if isinstance(d, dict) else str(d)[:300])
+except Exception:
+    print(open(sys.argv[1], errors="replace").read()[:300])
+PY
+)
+rm -f "$OUT/api-login.json"
+say "  backend $API/auth/login: HTTP $code $msg $(cat "$OUT/api-login-err.txt")"
+adb logcat -c
 dump; tap id modeSignIn
 fill email "$EMAIL"; fill password "$PASS"
 dump; cp "$OUT/ui.xml" "$OUT/ui-signin-filled.xml"
 tap id authGo; sleep 10; dump; cp "$OUT/ui.xml" "$OUT/ui-after-signin.xml"
+pid=$(adb shell pidof "$PKG" | tr -d '\r')
+[ -n "$pid" ] && adb logcat -d --pid="$pid" | tail -200 > "$OUT/app-log-signin.txt"
 if signed_in; then say "PASS signed in ($(activity))"
 else
   # No screenshot here: the form shows the email.
