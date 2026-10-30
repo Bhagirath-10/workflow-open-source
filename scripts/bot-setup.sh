@@ -23,13 +23,16 @@ type_secret() {
 say "## 4bTech Game: permissions and sign-in"
 
 # 1. Permissions, granted directly (same result as switching each one on in Settings).
-adb shell settings put secure enabled_accessibility_services "$PKG/$PKG.BotService"
-adb shell settings put secure accessibility_enabled 1
-adb shell appops set "$PKG" PROJECT_MEDIA allow             # screen capture without the "Start recording?" prompt
-adb shell appops set "$PKG" REQUEST_INSTALL_PACKAGES allow  # install unknown apps
-adb shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow       # draw over other apps
-adb shell appops set "$PKG" RUN_IN_BACKGROUND allow
-adb shell dumpsys deviceidle whitelist "+$PKG" >/dev/null   # no battery optimisation
+grant() {
+  adb shell settings put secure enabled_accessibility_services "$PKG/$PKG.BotService"
+  adb shell settings put secure accessibility_enabled 1
+  adb shell appops set "$PKG" PROJECT_MEDIA allow             # screen capture without the "Start recording?" prompt
+  adb shell appops set "$PKG" REQUEST_INSTALL_PACKAGES allow  # install unknown apps
+  adb shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow       # draw over other apps
+  adb shell appops set "$PKG" RUN_IN_BACKGROUND allow
+  adb shell dumpsys deviceidle whitelist "+$PKG" >/dev/null   # no battery optimisation
+}
+grant
 acc=$(adb shell settings get secure enabled_accessibility_services | tr -d '\r')
 say "PASS accessibility service on: $acc"
 say "  appops: $(adb shell appops get "$PKG" | tr -d '\r' | grep -E 'PROJECT_MEDIA|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' | tr '\n' ' ')"
@@ -39,15 +42,27 @@ adb shell input keyevent KEYCODE_HOME
 
 # 2. Open the app and sign in.
 [ -n "${FOUR_BTECH_GAME_EMAIL:-}" ] && [ -n "${FOUR_BTECH_GAME_PASSWORD:-}" ] || { say "FAIL sign-in: secrets FOUR_BTECH_GAME_EMAIL / FOUR_BTECH_GAME_PASSWORD are not set"; exit 1; }
-adb shell am force-stop "$PKG"
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 8
-# A system dialog (e.g. an install prompt) on top of the app: record it, then close it.
-for i in 1 2 3; do
+version() { adb shell dumpsys package "$PKG" | tr -d '\r' | grep -m1 versionName | sed 's/ *versionName=//'; }
+open_app() { adb shell am force-stop "$PKG"; adb shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 8; }
+open_app
+# The app insists on its newest version ("Please update"): let it update itself, then open it again.
+V0=$(version)
+for i in $(seq 1 8); do
   dump; top=$(find top)
-  [ "$top" = "$PKG" ] && break
-  say "  dialog over the app from $top"; shot dialog-$i
-  tap text "CANCEL|Cancel|GOT IT|Got it|OK|Allow|ALLOW" || adb shell input keyevent KEYCODE_BACK; sleep 3
+  if [ "$top" = com.android.packageinstaller ] || [ "$top" = com.google.android.packageinstaller ]; then
+    shot installer-$i
+    tap text "INSTALL|Install|UPDATE|Update|DONE|Done|OPEN|Open" || adb shell input keyevent KEYCODE_BACK; sleep 15
+  elif find text "Please update" >/dev/null; then
+    shot please-update-$i
+    tap text "Update|UPDATE"; sleep 20
+  else
+    break
+  fi
+  [ "$(version)" != "$V0" ] && { say "PASS app updated itself: $V0 -> $(version)"; V0=$(version); grant; open_app; }
 done
+dump
+[ "$(find top)" = "$PKG" ] || { say "FAIL still not in the app (top: $(find top))"; shot stuck; exit 1; }
+say "  app version $(version)"
 shot app-open
 tap text "Sign in|SIGN IN|Login|LOG IN|Log in" && dump
 email_xy=$(find edit 0); pass_xy=$(find password)
