@@ -77,43 +77,19 @@ signed_in() { local a; a=$(activity); case "$a" in "$PKG"/*) [[ "$a" != *AuthAct
 # Typing needs no on-screen keyboard; without it the whole form stays visible.
 for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime" >/dev/null; done
 
-# The account lives on the phone only, so a new phone has none: register it first.
-# (No screenshots while the email is on screen: these results are public.)
-dump; tap id modeRegister; dump; shot register-form
-fill name "${FOUR_BTECH_GAME_NAME:-Bhautik}"
-fill email "$FOUR_BTECH_GAME_EMAIL"
-[ -n "${FOUR_BTECH_GAME_MOBILE:-}" ] && fill mobile "$FOUR_BTECH_GAME_MOBILE"
-fill password "$FOUR_BTECH_GAME_PASSWORD"
-fill confirm "$FOUR_BTECH_GAME_PASSWORD"
-dump
-# Tick "I agree": tap the left end of the row so the Terms/Privacy links are not hit.
-python3 -I - "$OUT/ui.xml" <<'PY' > "$OUT/agree.txt"
-import re, sys, xml.etree.ElementTree as ET
-for n in ET.parse(sys.argv[1]).iter("node"):
-    if n.get("resource-id", "").endswith(":id/agree"):
-        x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
-        print(x1 + (y2 - y1) // 2, (y1 + y2) // 2, n.get("checked")); break
-PY
-read -r ax ay checked < "$OUT/agree.txt"; rm -f "$OUT/agree.txt"
-[ -n "${ax:-}" ] && [ "$checked" != true ] && { adb shell input tap $ax $ay; sleep 1; }
-dump; cp "$OUT/ui.xml" "$OUT/ui-register-filled.xml"
-tap id authGo; sleep 8; dump; cp "$OUT/ui.xml" "$OUT/ui-after-register.xml"
-err=$(find idtext authError)
-if signed_in; then
-  say "PASS registered and signed in ($(activity))"
+# Sign in with the account from the secrets (stray spaces/newlines from pasting are dropped).
+EMAIL=$(printf '%s' "$FOUR_BTECH_GAME_EMAIL" | tr -d '[:space:]')
+PASS=$(printf '%s' "$FOUR_BTECH_GAME_PASSWORD" | tr -d '\r\n' | sed 's/^ *//; s/ *$//')
+say "  secrets: email ${#FOUR_BTECH_GAME_EMAIL} chars (${#EMAIL} trimmed), password ${#FOUR_BTECH_GAME_PASSWORD} chars (${#PASS} trimmed)"
+dump; tap id modeSignIn
+fill email "$EMAIL"; fill password "$PASS"
+dump; cp "$OUT/ui.xml" "$OUT/ui-signin-filled.xml"
+tap id authGo; sleep 10; dump; cp "$OUT/ui.xml" "$OUT/ui-after-signin.xml"
+if signed_in; then say "PASS signed in ($(activity))"
 else
-  say "  register: ${err:-no message}; trying sign-in"
-  # Already registered on this phone (or the app wants a sign-in after registering): sign in.
-  dump; tap id modeSignIn
-  fill email "$FOUR_BTECH_GAME_EMAIL"; fill password "$FOUR_BTECH_GAME_PASSWORD"
-  dump; cp "$OUT/ui.xml" "$OUT/ui-signin-filled.xml"
-  tap id authGo; sleep 8; dump; cp "$OUT/ui.xml" "$OUT/ui-after-signin.xml"
-  if signed_in; then say "PASS signed in ($(activity))"
-  else
-    # No screenshot here: the form shows the email.
-    say "FAIL sign-in: $(find idtext authError) (screen: $(activity))"
-    adb shell input keyevent KEYCODE_HOME; sleep 1; shot after-fail-home; exit 1
-  fi
+  # No screenshot here: the form shows the email.
+  say "FAIL sign-in: $(find idtext authError) (screen: $(activity))"
+  adb shell input keyevent KEYCODE_HOME; sleep 1; shot after-fail-home; exit 1
 fi
 shot signed-in
 sleep 10; dump; shot signed-in-later
