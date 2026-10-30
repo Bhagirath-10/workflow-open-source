@@ -67,10 +67,23 @@ jobs:
               pkg=$(comm -13 <(echo "$before") <(adb shell pm list packages -3 | tr -d '\r' | sort) | head -1 | sed 's/^package://')
               echo "PASS install $f ($pkg)" | tee -a out/notes.txt
               if [ -n "$pkg" ]; then
-                adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
-                sleep 20
-                adb exec-out screencap -p > "out/$n-$name.png"
-                adb shell input keyevent KEYCODE_HOME; sleep 2
+                ver=$(adb shell dumpsys package "$pkg" | tr -d '\r' | grep -m1 versionName | sed 's/ *versionName=//')
+                echo "  version $ver" | tee -a out/notes.txt
+                # Proof of install: the app's own App info page in Settings.
+                adb shell am start -W -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$pkg" >/dev/null 2>&1 || true
+                sleep 4; adb exec-out screencap -p > "out/$n-$name-1-appinfo.png"
+                adb shell input keyevent KEYCODE_HOME; sleep 1
+                # Open it through its launcher activity and screenshot what is on screen.
+                act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$pkg" | tr -d '\r' | tail -1)
+                adb logcat -c
+                adb shell am start -W -n "$act" > "out/launch-$name.txt" 2>&1 || true
+                sleep 25
+                adb exec-out screencap -p > "out/$n-$name-2-open.png"
+                top=$(adb shell dumpsys activity activities | tr -d '\r' | grep -m1 -E "mResumedActivity|topResumedActivity" | sed 's/^ *//')
+                echo "  launch $act -> on screen: $top" | tee -a out/notes.txt
+                adb logcat -d -b crash > "out/crash-$name.txt" 2>/dev/null || true
+                [ -s "out/crash-$name.txt" ] && echo "  CRASH log: crash-$name.txt" | tee -a out/notes.txt
+                adb shell am force-stop "$pkg"; adb shell input keyevent KEYCODE_HOME; sleep 2
               fi
             else
               RC=1; echo "FAIL install $f: $(tail -1 "out/install-$name.txt")" | tee -a out/notes.txt
