@@ -1,23 +1,24 @@
 # Android 10 - install and screenshot
 
-Run [#5](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41109481689), 2026-10-30 18:47 UTC
+Run [#6](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41110035417), 2026-10-30 18:52 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{ed879e0 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{8906523 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{90ff0c5 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{e3e3f7c u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{faa153a u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{738d93b u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s172ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s82ms ago 
   battery optimisation off: 1 entry
-  dialog over the app from com.android.packageinstaller
-FAIL sign-in: no email/password fields on screen
+PASS app updated itself: 2.1.9-qa -> 2.1.13
+  app version 2.1.13
+FAIL sign-in: still on the sign-in screen (see after-sign-in screenshot)
 ```
 
 ## 0-home
@@ -36,17 +37,25 @@ FAIL sign-in: no email/password fields on screen
 
 <img src="10-accessibility-settings.png" width="300">
 
-## 11-dialog-1
+## 11-installer-1
 
-<img src="11-dialog-1.png" width="300">
+<img src="11-installer-1.png" width="300">
 
 ## 12-app-open
 
 <img src="12-app-open.png" width="300">
 
-## 13-no-login-form
+## 13-sign-in-form
 
-<img src="13-no-login-form.png" width="300">
+<img src="13-sign-in-form.png" width="300">
+
+## 14-after-sign-in
+
+<img src="14-after-sign-in.png" width="300">
+
+## 15-signed-in-later
+
+<img src="15-signed-in-later.png" width="300">
 
 ## 2-base-1-appinfo
 
