@@ -65,12 +65,15 @@ dump
 say "  app version $(version)"
 shot app-open
 activity() { adb shell dumpsys activity activities | tr -d '\r' | grep -m1 mResumedActivity | grep -oE '[^ /]+/[^ }]+' | tail -1; }
-keyboard_down() { adb shell dumpsys input_method | tr -d '\r' | grep -q 'mInputShown=true' && adb shell input keyevent KEYCODE_BACK; sleep 1; }
+keyboard_down() { sleep 1; }  # no on-screen keyboard (turned off below), so nothing covers the form
 fill() {  # fill <id> <value>: types into the field with that id (screen is dumped again first)
   local xy; dump; xy=$(find id "$1") || { say "  no field $1"; return 1; }
   adb shell input tap $xy; sleep 1; type_secret "$2"; keyboard_down
 }
-signed_in() { ! activity | grep -q AuthActivity; }
+# Signed in = some screen of the app other than the sign-in screen is in front.
+signed_in() { local a; a=$(activity); case "$a" in "$PKG"/*) [[ "$a" != *AuthActivity* ]];; *) return 1;; esac; }
+# Typing needs no on-screen keyboard; without it the whole form stays visible.
+for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime" >/dev/null; done
 
 # The account lives on the phone only, so a new phone has none: register it first.
 # (No screenshots while the email is on screen: these results are public.)
@@ -102,7 +105,10 @@ else
   fill email "$FOUR_BTECH_GAME_EMAIL"; fill password "$FOUR_BTECH_GAME_PASSWORD"
   dump; tap id authGo; sleep 8; dump
   if signed_in; then say "PASS signed in ($(activity))"
-  else say "FAIL sign-in: $(find idtext authError)"; adb shell input keyevent KEYCODE_HOME; exit 1
+  else
+    # No screenshot here: the form shows the email.
+    say "FAIL sign-in: $(find idtext authError) (screen: $(activity))"
+    adb shell input keyevent KEYCODE_HOME; sleep 1; shot after-fail-home; exit 1
   fi
 fi
 shot signed-in
