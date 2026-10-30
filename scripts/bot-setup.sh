@@ -82,7 +82,7 @@ EMAIL=$(printf '%s' "$FOUR_BTECH_GAME_EMAIL" | tr -d '[:space:]')
 PASS=$(printf '%s' "$FOUR_BTECH_GAME_PASSWORD" | tr -d '\r\n' | sed 's/^ *//; s/ *$//')
 say "  secrets: email ${#FOUR_BTECH_GAME_EMAIL} chars (${#EMAIL} trimmed), password ${#FOUR_BTECH_GAME_PASSWORD} chars (${#PASS} trimmed)"
 # Does the backend accept this account? (status and message only; tokens and secrets are never printed)
-API=https://4brummyhome.synoventum.us.cc
+API=https://4brummyhome.synoventum.us.cc/api/v1
 body=$(python3 -I -c 'import json,sys; print(json.dumps({"email": sys.argv[1], "password": sys.argv[2]}))' "$EMAIL" "$PASS")
 code=$(curl -sS -m 20 -o "$OUT/api-login.json" -w '%{http_code}' -H 'Content-Type: application/json' -d "$body" "$API/auth/login" 2>"$OUT/api-login-err.txt")
 msg=$(python3 -I - "$OUT/api-login.json" <<'PY'
