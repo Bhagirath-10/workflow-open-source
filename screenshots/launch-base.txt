@@ -2,6 +2,6 @@ Starting: Intent { cmp=BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity }
 Status: ok
 LaunchState: COLD
 Activity: BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity
-TotalTime: 491
-WaitTime: 492
+TotalTime: 510
+WaitTime: 514
 Complete
