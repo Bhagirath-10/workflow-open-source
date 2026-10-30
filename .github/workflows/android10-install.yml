@@ -1,0 +1,93 @@
+name: Android 10 - install APKs and screenshot
+
+# One job: starts real ARM Android 10 (Redroid container on GitHub's ARM runner), installs
+# 4bTech Space, the game (base.apk) and 4B-Rummy-Home, opens each one and takes screenshots.
+# Screenshots, the install log and the package list are uploaded as the artifact "screenshots".
+#
+# Secret GAME_AUTO_TOKEN: a token that can read the releases of the private repo
+# Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/android10-install.yml
+
+permissions:
+  contents: read
+
+env:
+  SPACE_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/4bTech-Space.apk
+  GAME_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/base.apk
+  RUMMY_URL: https://github.com/Bhautik-4B/Action-Auto/releases/download/qa-v2.1.9-qa/4B-Rummy-Home-2.1.9-qa.apk
+  ANDROID_SERIAL: localhost:6000
+
+jobs:
+  android10:
+    name: Android 10 (ARM) - install and screenshot
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: Download the APKs
+        env:
+          GH_TOKEN: ${{ secrets.GAME_AUTO_TOKEN }}
+        run: |
+          mkdir -p apk out
+          [ -n "$GH_TOKEN" ] || { echo "::error::Secret GAME_AUTO_TOKEN is missing (needed for the private repo Bhautik-4B/Game-Auto)"; exit 1; }
+          gh release download APK --repo Bhautik-4B/Game-Auto --pattern 4bTech-Space.apk --dir apk
+          gh release download APK --repo Bhautik-4B/Game-Auto --pattern base.apk --dir apk
+          curl -fsSL -o apk/4B-Rummy-Home.apk "$RUMMY_URL"
+          ls -l apk | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Start Android 10 (Redroid, arm64)
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq adb "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb >/dev/null
+          sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
+          sudo modprobe ashmem_linux 2>/dev/null || true
+          docker pull -q redroid/redroid:10.0.0-latest >/dev/null
+          docker run -d --name android --privileged --memory=4g --cpus=4 -p 6000:5555 redroid/redroid:10.0.0-latest \
+            androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420
+          for i in $(seq 1 84); do adb connect localhost:6000 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
+          if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != 1 ]; then
+            docker logs android 2>&1 | tail -100 > out/boot_failure.txt; echo "::error::Android did not boot"; exit 1
+          fi
+          echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r'), $(adb shell getprop ro.product.cpu.abi | tr -d '\r')" | tee -a "$GITHUB_STEP_SUMMARY"
+          adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
+          sleep 5; adb exec-out screencap -p > out/0-home.png
+
+      - name: Install the 3 APKs and screenshot each
+        run: |
+          RC=0; n=0
+          for f in 4bTech-Space.apk base.apk 4B-Rummy-Home.apk; do
+            n=$((n + 1)); name=${f%.apk}
+            before=$(adb shell pm list packages -3 | tr -d '\r' | sort)
+            if adb install -r -g "apk/$f" > "out/install-$name.txt" 2>&1; then
+              pkg=$(comm -13 <(echo "$before") <(adb shell pm list packages -3 | tr -d '\r' | sort) | head -1 | sed 's/^package://')
+              echo "PASS install $f ($pkg)" | tee -a out/notes.txt
+              if [ -n "$pkg" ]; then
+                adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+                sleep 20
+                adb exec-out screencap -p > "out/$n-$name.png"
+                adb shell input keyevent KEYCODE_HOME; sleep 2
+              fi
+            else
+              RC=1; echo "FAIL install $f: $(tail -1 "out/install-$name.txt")" | tee -a out/notes.txt
+            fi
+          done
+          adb exec-out screencap -p > out/9-final.png
+          adb shell pm list packages -3 | tr -d '\r' > out/packages.txt
+          { echo '```'; cat out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "RC=$RC" >> "$GITHUB_ENV"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: out
+          retention-days: 7
+
+      - name: Fail if an install failed
+        if: env.RC == '1'
+        run: exit 1
