@@ -57,7 +57,7 @@ jobs:
   android10:
     name: Android 10 (ARM) - install and screenshot
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -165,7 +165,7 @@ jobs:
         if: env.POOL_RC == '0'
         run: |
           serials=""; for n in $(seq 1 "$DEVICES"); do serials="$serials localhost:600$n"; done
-          r=0; bash scripts/press-start.sh out/start $serials >/dev/null 2>&1 || r=$?
+          r=0; CLONES_TARGET=3 CLONES_WAIT_MIN=60 bash scripts/press-start.sh out/start $serials >/dev/null 2>&1 || r=$?
           [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
           echo "Start: rc $r" | tee -a "$GITHUB_STEP_SUMMARY"
 

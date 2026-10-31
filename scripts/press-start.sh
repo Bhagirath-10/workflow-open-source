@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Presses Start in 4bTech Game on every phone (after pool-join.sh put them in one pool), then
-# takes screenshots right after and a while later, then 4bTech Space's home screen (the clones). Screen texts go to <out-dir>/notes.txt.
+# waits until 4bTech Space has CLONES_TARGET clones on every phone (default 3, at most
+# CLONES_WAIT_MIN minutes, default 60), then takes 4bTech Space's home screen (the clones). Screen texts go to <out-dir>/notes.txt.
 #
 #   press-start.sh <out-dir> <adb-serial-1> [<adb-serial-2> ...]
 set -uo pipefail
@@ -57,22 +58,38 @@ for i in "${!PHONES[@]}"; do
   say "  screen: $(screen_text)"; shot 2-after-start
 done
 
-# The first 5 minutes after Start: close a pop-up on any phone (every phone checked about every
-# 15 seconds), and a screenshot of every phone each minute.
-start_t=$(date +%s); m=1
-while [ $(( $(date +%s) - start_t )) -lt 300 ]; do
-  if [ $(( $(date +%s) - start_t )) -ge $(( m * 60 )) ]; then
-    for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); shot "3-min$m"; done; m=$((m + 1))
+# After Start nothing is touched in the apps (4bTech Game makes the clones by itself). The run waits
+# until 4bTech Space has at least $CLONES_TARGET clones on every phone (each clone is an inner user
+# with the game in blackbox/data/user/<N>/), at most $CLONES_WAIT_MIN minutes. Only Android's own
+# pop-ups (GOT IT / Allow) are closed; a screenshot of every phone every 5 minutes.
+TARGET=${CLONES_TARGET:-3}; WAIT_MIN=${CLONES_WAIT_MIN:-60}
+GAME=BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP
+clones() {
+  local d=/data/data/com.fourbtech.space/blackbox/data/user
+  { a shell "ls -d $d/*/$GAME 2>/dev/null" || a shell "su 0 sh -c 'ls -d $d/*/$GAME' 2>/dev/null"; } | tr -d '\r' | grep -c "/$GAME$"
+}
+start_t=$(date +%s); next_shot=300; next_log=0
+while :; do
+  el=$(( $(date +%s) - start_t )); counts=""; done_all=1
+  for i in "${!PHONES[@]}"; do
+    S=${PHONES[$i]}; P=$((i + 1)); c=$(clones); counts="$counts phone$P=$c"
+    [ "$c" -ge "$TARGET" ] || done_all=0
+    tap_popup || true
+  done
+  if [ "$el" -ge "$next_log" ]; then say "  $((el / 60)) min after Start, clones:$counts"; next_log=$((next_log + 60)); fi
+  if [ "$el" -ge "$next_shot" ]; then
+    for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); shot "3-min$((el / 60))"; done; next_shot=$((next_shot + 300))
   fi
-  for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); tap_popup || true; done
-  sleep 5
+  if [ "$done_all" = 1 ]; then say "PASS every phone has at least $TARGET clones ($((el / 60)) min after Start):$counts"; break; fi
+  if [ "$el" -ge $((WAIT_MIN * 60)) ]; then say "FAIL not $TARGET clones on every phone after $WAIT_MIN min:$counts"; RC=1; break; fi
+  sleep 10
 done
 # What every phone is doing now.
 for i in "${!PHONES[@]}"; do
   S=${PHONES[$i]}; P=$((i + 1))
   top=$(a shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')
-  say "## phone $P 5 minutes after Start: $top"
-  say "  screen: $(screen_text)"; shot 3-5min
+  say "## phone $P at the end: $top"
+  say "  screen: $(screen_text)"; shot 3-end
 done
 # Then 4bTech Space's home screen on every phone: the clones 4bTech Game made after Start.
 for i in "${!PHONES[@]}"; do
