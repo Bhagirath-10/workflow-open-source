@@ -1,14 +1,14 @@
 ## phone 1 (localhost:6001): select Pool
-  screen not readable; scrolled to the bottom, tapping the Pool tab by position
-  screen: 4bTech Game | ⚡ BOOST | Profile menu | MB | BOOST | Faster clones with 4bTech Space | ON | Setup needed | Setup | Tap Setup to finish: allow the app to use the screen. | Game: RummyHome | PLAY | Alone | Two phones | Pool | All your phones on the same Wi-Fi with the same pool code play together. Saved winners with close balances (within ₹5) on any of your phones are paired first, the others play new guests; always on opposite sides, and nobody waits for one particular phone. Only phones signed in to your account join. | No pool yet | New pool code | Enter code | Stop | Start | Home | Wallet | H
+  tap: PLAY › Pool (844 1212)
+  screen: 11:10|| 4bTech Game a> ©|@® pool|Make a pool code on one phone and enter it on|your other phones.|Game: RummyHome|PLAY|Alone Two pho... Pool|All your phones on the same Wi-Fi with the same|pool code play together. Saved winners with close|balances (within on any of your phones are|paired first, the others play new guests; always on|opposite sides, and nobody waits for one particular|phone. Only phones signed in to your account join.|No pool yet|Enter code|Make a new pool code on one phone, then|Stop|ft 0|Home Wallet History Device Profile|a|
 ## phone 2 (localhost:6002): select Pool
-  screen not readable; scrolled to the bottom, tapping the Pool tab by position
-  screen: 
+  tap: PLAY › Pool (844 1212)
+  screen: 11:12|| 4bTech Game a> ©|Faster clones with 4bTech Space|@® pool|Make a pool code on one phone and enter it on|your other phones.|Game: RummyHome|PLAY|Alone Two pho... Pool|All your phones on the same Wi-Fi with the same|pool code play together. Saved winners with close|balances (within on any of your phones are|paired first, the others play new guests; always on|opposite sides, and nobody waits for one particular|phone. Only phones signed in to your account join.|No pool yet|Enter code|Stop|ft £) 0|Home Wallet History Device Profile|a|
 ## phone 3 (localhost:6003): select Pool
-  screen not readable; scrolled to the bottom, tapping the Pool tab by position
-  screen: 
-## phone 1 (localhost:6001): show the pool code
-  no Show code button; reading the code from the screen as it is
-  screen: 
+  tap: PLAY › Pool (844 1212)
+  screen: 11:15|| 4bTech Game a> ©|Faster clones with 4bTech Space|@® pool|Make a pool code on one phone and enter it on|your other phones.|Game: RummyHome|PLAY|Alone Two pho... Pool|All your phones on the same Wi-Fi with the same|pool code play together. Saved winners with close|balances (within on any of your phones are|paired first, the others play new guests; always on|opposite sides, and nobody waits for one particular|phone. Only phones signed in to your account join.|No pool yet|Enter code|aacl 1|Stop|ft £) 0|Home Wallet History Device Profile|a|
+## phone 1 (localhost:6001): new pool code
+  tap: New pool code (431 1715)
+  screen: 11:19|| 4bTech Game a> ©|@® pool|Make a pool code on one phone and enter it on|your other phones.|Game: RummyHome|PLAY|Alone Two pho... Pool|All your phones on the same Wi-Fi with the same|pool code play together. Saved winners with close|balances (within on any of your phones are|paired first, the others play new guests; always on|opposite sides, and nobody waits for one particular|phone. Only phones signed in to your account join.|No pool yet|Enter code|Make a new pool code on one phone, then|Stop|ft 0|Home Wallet History Device Profile|a|
 FAIL phone 1: no pool code on the screen
 FAIL no pool code: the other phones cannot join
