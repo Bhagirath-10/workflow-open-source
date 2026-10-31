@@ -69,15 +69,25 @@ PY
 select_pool() {
   say "## phone $P ($S): select Pool"
   a shell input keyevent KEYCODE_WAKEUP
+  # The home screen's moving banner keeps uiautomator from reading the screen: animations off.
+  local k; for k in window_animation_scale transition_animation_scale animator_duration_scale; do
+    a shell settings put global $k 0; done
   a shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 4
-  local i
+  local i xy
   for i in 1 2 3 4; do
-    dump
-    if find text "Pool" >/dev/null && find text "Alone" >/dev/null; then break; fi
     a shell input swipe 540 1700 540 1100 400; sleep 2          # scroll down a little
+    dump && find text "Pool" >/dev/null && break
   done
   shot 1-play
-  tap "Pool" "PLAY › Pool" || { say "FAIL phone $P: no Pool tab: $(texts)"; shot 1-no-pool; return 1; }
+  if xy=$(find text "Pool"); then
+    say "  tap: PLAY › Pool"; a shell input tap $xy; sleep 3
+  else
+    # Screen not readable: scrolled to the bottom, the Pool tab (last of the three) is at
+    # 843,1212 on the 1080x2280 screen.
+    say "  screen not readable; scrolled to the bottom, tapping the Pool tab by position"
+    for i in 1 2 3; do a shell input swipe 540 1700 540 900 300; sleep 1; done
+    a shell input tap 843 1212; sleep 3
+  fi
   a shell input swipe 540 1700 540 1300 400; sleep 2            # bring the pool part into view
   dump; say "  screen: $(texts)"; shot 2-pool
 }
