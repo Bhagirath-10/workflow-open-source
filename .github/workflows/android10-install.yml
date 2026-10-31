@@ -11,9 +11,20 @@ name: Android 10 - install APKs and screenshot
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
 # Secrets FOUR_BTECH_GAME_EMAIL / FOUR_BTECH_GAME_PASSWORD: the 4bTech Game account (registered on
 # the phone first: the app keeps accounts on the phone only); optional FOUR_BTECH_GAME_NAME / _MOBILE.
+#
+# Same network: the job runs 2 or 3 Redroid containers (input "devices", default 2) on one Docker
+# network "wifi" (172.30.0.0/24). They share a subnet like phones on one Wi-Fi, so the app's local
+# discovery (same Wi-Fi, same pool code) can find the other phones. Phone N: container androidN,
+# IP 172.30.0.1N, adb localhost:600N, results in out/phoneN/.
 
 on:
   workflow_dispatch:
+    inputs:
+      devices:
+        description: Number of phones on the same Wi-Fi (Docker network)
+        type: choice
+        options: ["2", "3"]
+        default: "2"
   push:
     paths:
       - .github/workflows/android10-install.yml
@@ -26,7 +37,7 @@ env:
   SPACE_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/4bTech-Space.apk
   GAME_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/base.apk
   RUMMY_URL: https://github.com/Bhautik-4B/Action-Auto/releases/download/qa-v2.1.9-qa/4B-Rummy-Home-2.1.9-qa.apk
-  ANDROID_SERIAL: localhost:6000
+  DEVICES: ${{ inputs.devices || '2' }}
 
 jobs:
   android10:
@@ -47,22 +58,36 @@ jobs:
           curl -fsSL -o apk/4B-Rummy-Home.apk "$RUMMY_URL"
           ls -l apk | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Start Android 10 (Redroid, arm64)
+      - name: Start Android 10 phones on the same Wi-Fi (Redroid, arm64, one Docker network)
         run: |
           sudo apt-get update -qq >/dev/null
           sudo apt-get install -y -qq adb "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb >/dev/null
           sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
           sudo modprobe ashmem_linux 2>/dev/null || true
           docker pull -q redroid/redroid:10.0.0-latest >/dev/null
-          docker run -d --name android --privileged --memory=4g --cpus=4 -p 6000:5555 redroid/redroid:10.0.0-latest \
-            androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420
-          for i in $(seq 1 84); do adb connect localhost:6000 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
-          if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != 1 ]; then
-            docker logs android 2>&1 | tail -100 > out/boot_failure.txt; echo "::error::Android did not boot"; exit 1
-          fi
-          echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r'), $(adb shell getprop ro.product.cpu.abi | tr -d '\r')" | tee -a "$GITHUB_STEP_SUMMARY"
-          adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
-          sleep 5; adb exec-out screencap -p > out/0-home.png
+          docker network create --subnet 172.30.0.0/24 --gateway 172.30.0.1 wifi >/dev/null
+          for n in $(seq 1 "$DEVICES"); do
+            docker run -d --name "android$n" --network wifi --ip "172.30.0.1$n" --privileged --memory=4g --cpus=4 \
+              -p "600$n:5555" redroid/redroid:10.0.0-latest \
+              androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420
+          done
+          for n in $(seq 1 "$DEVICES"); do
+            export ANDROID_SERIAL="localhost:600$n"; mkdir -p "out/phone$n"
+            for i in $(seq 1 84); do adb connect "$ANDROID_SERIAL" >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
+            if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != 1 ]; then
+              docker logs "android$n" 2>&1 | tail -100 > "out/phone$n/boot_failure.txt"; echo "::error::Phone $n did not boot"; exit 1
+            fi
+            echo "Phone $n: Android $(adb shell getprop ro.build.version.release | tr -d '\r'), $(adb shell getprop ro.product.cpu.abi | tr -d '\r'), Wi-Fi IP 172.30.0.1$n" | tee -a "$GITHUB_STEP_SUMMARY"
+            adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
+          done
+          # Same Wi-Fi check: every phone reaches every other phone on the shared subnet
+          for n in $(seq 1 "$DEVICES"); do for m in $(seq 1 "$DEVICES"); do
+            [ "$n" = "$m" ] && continue
+            if adb -s "localhost:600$n" shell ping -c 1 -W 3 "172.30.0.1$m" >/dev/null 2>&1; then r="reachable"; else r="NOT reachable"; fi
+            echo "Phone $n -> phone $m (172.30.0.1$m): $r" | tee -a out/network.txt "$GITHUB_STEP_SUMMARY"
+          done; done
+          sleep 5
+          for n in $(seq 1 "$DEVICES"); do adb -s "localhost:600$n" exec-out screencap -p > "out/phone$n/0-home.png"; done
 
       - name: Full cycle - install, sign in, Setup (scripts/full-cycle.sh)
         env:
@@ -71,8 +96,16 @@ jobs:
           FOUR_BTECH_GAME_NAME: ${{ secrets.FOUR_BTECH_GAME_NAME }}
           FOUR_BTECH_GAME_MOBILE: ${{ secrets.FOUR_BTECH_GAME_MOBILE }}
         run: |
-          RC=0; bash scripts/full-cycle.sh apk out || RC=$?
-          { echo '```'; cat out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # all phones at once, each with its own adb serial and results folder
+          for n in $(seq 1 "$DEVICES"); do
+            ( ANDROID_SERIAL="localhost:600$n" bash scripts/full-cycle.sh apk "out/phone$n"; echo $? > "out/phone$n/rc" ) &
+          done
+          wait
+          RC=0
+          for n in $(seq 1 "$DEVICES"); do
+            r=$(cat "out/phone$n/rc" 2>/dev/null || echo 1); [ "$r" = 0 ] || RC=$r
+            { echo "### Phone $n (rc $r)"; echo '```'; cat "out/phone$n/notes.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
           echo "RC=$RC" >> "$GITHUB_ENV"
 
       - name: Remove credentials from the results
@@ -93,7 +126,7 @@ jobs:
                       t = t.replace(s, "***")
                   f.write_text(t)
           PY
-          rm -f out/ui.xml
+          rm -f out/ui.xml out/phone*/ui.xml
 
       - name: Upload screenshots
         if: always()
@@ -114,8 +147,11 @@ jobs:
             echo
             echo "Run [#$GITHUB_RUN_NUMBER]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID), $(date -u '+%Y-%m-%d %H:%M UTC')"
             echo
-            echo '```'; cat out/notes.txt 2>/dev/null; echo '```'
-            for f in $(cd out && ls *.png 2>/dev/null); do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$f\" width=\"300\">"; done
+            echo '```'; cat out/network.txt 2>/dev/null; echo '```'
+            for d in $(cd out && ls -d phone* 2>/dev/null); do
+              echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null; echo '```'
+              for f in $(cd "out/$d" && ls *.png 2>/dev/null); do echo; echo "## $d - ${f%.png}"; echo; echo "<img src=\"$d/$f\" width=\"300\">"; done
+            done
           } > site/screenshots/README.md
           cd site
           git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
