@@ -30,6 +30,8 @@ adb install -r -g "$GUEST_APK" >/dev/null || { say "FAIL guest install"; exit 1;
 GUEST=$(comm -13 <(echo "$BEFORE") <(adb shell pm list packages -3 | tr -d '\r' | sort) | head -1 | sed 's/^package://')
 say "guest app: $GUEST"
 adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard
+# No on-screen keyboard: typing works without it and dialogs do not move under the taps.
+for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime" >/dev/null; done
 open_app
 
 cmd clone --es pkg "$GUEST" --ei count 4
@@ -63,22 +65,45 @@ open_app; shot home 3
 dump; xy=$(find text "Select") && { adb shell input tap $xy; } ; shot select-one
 tap "Select all"; shot select-all
 tap "Rename"; shot rename-dialog
+# A new name for all, then numbered 1, 2, 3...
+dump; xy=$(find edit 0) && { adb shell input tap $xy; adb shell input keyevent KEYCODE_MOVE_END $(printf 'KEYCODE_DEL %.0s' $(seq 1 30)); adb shell input text "Game"; }
 tap "1, 2, 3…"; shot rename-numbered
 tap "Save"; shot renamed 3
 dump; xy=$(find text "Select") && adb shell input tap $xy; sleep 2
 tap "Select all"
 tap "Export"; shot export-password
-dump; for i in 0 1; do xy=$(find edit $i) && { adb shell input tap $xy; adb shell input text "$PW"; }; done
-adb shell input keyevent KEYCODE_BACK; sleep 1; shot export-password-filled
+for i in 0 1; do dump; xy=$(find edit $i) && { adb shell input tap $xy; sleep 1; adb shell input text "$PW"; }; done
+shot export-password-filled
 tap "Choose folder"; shot export-folder-picker 3
-adb shell input keyevent KEYCODE_BACK; sleep 2
+# Android's folder picker: this folder, then allow; the export runs and says so.
+if tap "USE THIS FOLDER|Use this folder"; then
+  shot export-allow
+  tap "ALLOW|Allow"; shot export-running 1; sleep 8; shot export-done 0
+else
+  adb shell input keyevent KEYCODE_BACK; sleep 2
+fi
 dump; xy=$(find text "Select") && adb shell input tap $xy; sleep 2
 tap "Delete"; shot delete-confirm
 tap "Cancel"; sleep 1
 tap "Clear"; shot clear-confirm
 tap "Cancel"; sleep 1
 adb shell input keyevent KEYCODE_BACK; sleep 2; shot selection-left
-dump; xy=$(find text "Import") && { adb shell input tap $xy; shot import-picker 3; adb shell input keyevent KEYCODE_BACK; sleep 2; }
+dump; xy=$(find text "Import") && { adb shell input tap $xy; shot import-picker 3; }
+# The exported files are the most recent ones: open the first, give the password, import.
+dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+for n in ET.parse(sys.argv[1]).iter("node"):
+    if n.get("text", "").endswith(".4bspace"):
+        x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds"))); print((x1 + x2) // 2, (y1 + y2) // 2); break
+PY
+)
+if [ -n "$xy" ]; then
+  adb shell input tap $xy; sleep 3; shot import-password
+  dump; xy=$(find edit 0) && { adb shell input tap $xy; sleep 1; adb shell input text "$PW"; }
+  tap "Import"; shot import-running 1; sleep 8; shot import-done 0
+else
+  say "  (no exported file in the picker)"; adb shell input keyevent KEYCODE_BACK; sleep 2
+fi
 # Long-press the first clone: the single menu with its new "Select" and "Export" rows.
 dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
