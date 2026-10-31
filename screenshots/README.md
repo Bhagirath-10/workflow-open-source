@@ -1,6 +1,6 @@
 # Android 10 - install and screenshot
 
-Run [#24](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41189136526), 2026-10-31 10:08 UTC
+Run [#26](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41191586953), 2026-10-31 10:45 UTC
 
 ```
 Phone 1 -> phone 2 (172.30.0.12): reachable
@@ -16,16 +16,16 @@ Phone 3 -> phone 2 (172.30.0.12): reachable
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{2ea8372 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{94e0064 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{5e6ffe9 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{618b339 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{9914b60 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{4b79cec u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s234ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s166ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -176,16 +176,16 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{dacf24f u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1f32361 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{f591f74 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{e25935e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{edbe13a u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{e7f4c0 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s202ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s534ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -336,16 +336,16 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{66efe56 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{6e45094 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{e162d2e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{21a97f5 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{b8b1ae3 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1d441dc u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s385ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s220ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -495,11 +495,14 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 
 ```
 ## phone 1 (localhost:6001): select Pool
-FAIL phone 1: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 4bTech Game | ⚡ BOOST | Profile menu | MB | BOOST | Faster clones with 4bTech Space | ON | Setup needed | Setup | Tap Setup to finish: allow the app to use the screen. | Game: RummyHome | PLAY | Alone | Two phones | Pool | All your phones on the same Wi-Fi with the same pool code play together. Saved winners with close balances (within ₹5) on any of your phones are paired first, the others play new guests; always on opposite sides, and nobody waits for one particular phone. Only phones signed in to your account join. | No pool yet | New pool code | Enter code | Stop | Start | Home | Wallet | H
 ## phone 2 (localhost:6002): select Pool
-FAIL phone 2: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 
 ## phone 3 (localhost:6003): select Pool
-FAIL phone 3: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 
 ## phone 1 (localhost:6001): show the pool code
   no Show code button; reading the code from the screen as it is
   screen: 
@@ -507,30 +510,30 @@ FAIL phone 1: no pool code on the screen
 FAIL no pool code: the other phones cannot join
 ```
 
-## pool - phone1-1-no-pool
-
-<img src="pool/phone1-1-no-pool.png" width="300">
-
 ## pool - phone1-1-play
 
 <img src="pool/phone1-1-play.png" width="300">
+
+## pool - phone1-2-pool
+
+<img src="pool/phone1-2-pool.png" width="300">
 
 ## pool - phone1-3-code
 
 <img src="pool/phone1-3-code.png" width="300">
 
-## pool - phone2-1-no-pool
-
-<img src="pool/phone2-1-no-pool.png" width="300">
-
 ## pool - phone2-1-play
 
 <img src="pool/phone2-1-play.png" width="300">
 
-## pool - phone3-1-no-pool
+## pool - phone2-2-pool
 
-<img src="pool/phone3-1-no-pool.png" width="300">
+<img src="pool/phone2-2-pool.png" width="300">
 
 ## pool - phone3-1-play
 
 <img src="pool/phone3-1-play.png" width="300">
+
+## pool - phone3-2-pool
+
+<img src="pool/phone3-2-pool.png" width="300">

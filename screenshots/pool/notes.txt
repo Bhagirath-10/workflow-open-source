@@ -1,9 +1,12 @@
 ## phone 1 (localhost:6001): select Pool
-FAIL phone 1: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 4bTech Game | ⚡ BOOST | Profile menu | MB | BOOST | Faster clones with 4bTech Space | ON | Setup needed | Setup | Tap Setup to finish: allow the app to use the screen. | Game: RummyHome | PLAY | Alone | Two phones | Pool | All your phones on the same Wi-Fi with the same pool code play together. Saved winners with close balances (within ₹5) on any of your phones are paired first, the others play new guests; always on opposite sides, and nobody waits for one particular phone. Only phones signed in to your account join. | No pool yet | New pool code | Enter code | Stop | Start | Home | Wallet | H
 ## phone 2 (localhost:6002): select Pool
-FAIL phone 2: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 
 ## phone 3 (localhost:6003): select Pool
-FAIL phone 3: no Pool tab: 
+  screen not readable; scrolled to the bottom, tapping the Pool tab by position
+  screen: 
 ## phone 1 (localhost:6001): show the pool code
   no Show code button; reading the code from the screen as it is
   screen: 
