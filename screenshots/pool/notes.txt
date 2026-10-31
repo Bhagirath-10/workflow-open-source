@@ -1,0 +1,11 @@
+## phone 1 (localhost:6001): select Pool
+FAIL phone 1: no Pool tab: 
+## phone 2 (localhost:6002): select Pool
+FAIL phone 2: no Pool tab: 
+## phone 3 (localhost:6003): select Pool
+FAIL phone 3: no Pool tab: 
+## phone 1 (localhost:6001): show the pool code
+  no Show code button; reading the code from the screen as it is
+  screen: 
+FAIL phone 1: no pool code on the screen
+FAIL no pool code: the other phones cannot join
