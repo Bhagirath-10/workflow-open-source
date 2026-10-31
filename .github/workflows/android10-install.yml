@@ -96,11 +96,12 @@ jobs:
           FOUR_BTECH_GAME_NAME: ${{ secrets.FOUR_BTECH_GAME_NAME }}
           FOUR_BTECH_GAME_MOBILE: ${{ secrets.FOUR_BTECH_GAME_MOBILE }}
         run: |
-          # all phones at once, each with its own adb serial and results folder
+          # one phone after another (all at once is too slow on the runner's 4 CPUs: taps get missed),
+          # each with its own adb serial and results folder; all phones stay on the same network
           for n in $(seq 1 "$DEVICES"); do
-            ( ANDROID_SERIAL="localhost:600$n" bash scripts/full-cycle.sh apk "out/phone$n"; echo $? > "out/phone$n/rc" ) &
+            r=0; ANDROID_SERIAL="localhost:600$n" bash scripts/full-cycle.sh apk "out/phone$n" || r=$?
+            echo "$r" > "out/phone$n/rc"
           done
-          wait
           RC=0
           for n in $(seq 1 "$DEVICES"); do
             r=$(cat "out/phone$n/rc" 2>/dev/null || echo 1); [ "$r" = 0 ] || RC=$r
