@@ -57,8 +57,13 @@ for i in "${!PHONES[@]}"; do
   say "  screen: $(screen_text)"; shot 2-after-start
 done
 
-# The first 2 minutes after Start: every 10 seconds, close a pop-up on any phone.
-for t in $(seq 1 12); do
+# The first 5 minutes after Start: close a pop-up on any phone (every phone checked about every
+# 15 seconds), and a screenshot of every phone each minute.
+start_t=$(date +%s); m=1
+while [ $(( $(date +%s) - start_t )) -lt 300 ]; do
+  if [ $(( $(date +%s) - start_t )) -ge $(( m * 60 )) ]; then
+    for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); shot "3-min$m"; done; m=$((m + 1))
+  fi
   for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); tap_popup || true; done
   sleep 5
 done
@@ -66,8 +71,8 @@ done
 for i in "${!PHONES[@]}"; do
   S=${PHONES[$i]}; P=$((i + 1))
   top=$(a shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')
-  say "## phone $P 2-3 minutes after Start: $top"
-  say "  screen: $(screen_text)"; shot 3-1min
+  say "## phone $P 5 minutes after Start: $top"
+  say "  screen: $(screen_text)"; shot 3-5min
 done
 # Then 4bTech Space's home screen on every phone: the clones 4bTech Game made after Start.
 for i in "${!PHONES[@]}"; do
