@@ -1,0 +1,11 @@
+## phone 1 (localhost:6001): Start
+  tap: Start (668 1840)
+  screen: 12:38 » @ MWe Oo|| 4bTech Game a> ©|Faster clones with 4bTech Space|Starting...|The app is playing for you. You can follow it on|the small box over the game.|Game: RummyHome|PLAY|Alone Two pho... Pool|All your phones on the same Wi-Fi with the same|pool code play together. Saved winners with close|balances (within on any of your phones are|paired first, the others play new guests; always on|opposite sides, and nobody waits for one particular|phone. Only phones signed in to your account join.|4VWZ8Y36|Enter code|2 phones in the pool ¥|Stop|ft 0|Home Wallet History Device Profile|a|
+## phone 2 (localhost:6002): Start
+  tap: Start (668 1840)
+  screen: Ua|
+## phone 1 1 minute after Start: mResumedActivity: ActivityRecord{6d86d71 u0 com.fourbtech.space/top.niunaijun.blackbox.proxy.ProxyLandscapeActivity$P0 t15}
+  screen: The game is open Viewing full|screen|To exit, swipe down from the top.|Hi GOT IT|Game updating : 0.79MB/1.42 ||155%|if it | wly yoo ne|try resta ame or swit a a ga|= fer pm ->|
+## phone 2 1 minute after Start: mResumedActivity: ActivityRecord{c8d5d54 u0 com.fourbtech.space/top.niunaijun.blackbox.proxy.ProxyLandscapeActivity$P0 t15}
+  screen: Guest43|bay 7833 _ VIPO|of Mail Support Setting|Wy|fre)|REBATE|==|an|Game updating Viewing full|100% - under 1 min screen|left - normal, please oe|don't press Stop|= To exit, swipe down from the top.|GOT IT Ret lette Ar|& Players NCA A|> =|<2) =)|om ||Slots —_|One of Three|e@ DEPOSIT|star off use =|~ Refer & Earn SS HOP|Notice re Rank Safe_ IORA|a ||
+DONE Start pressed on 2 phones
