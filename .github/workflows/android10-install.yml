@@ -109,6 +109,13 @@ jobs:
           done
           echo "RC=$RC" >> "$GITHUB_ENV"
 
+      - name: Pool - every phone selects Pool, phone 1 shows the code, the others enter it (scripts/pool-join.sh)
+        run: |
+          serials=""; for n in $(seq 1 "$DEVICES"); do serials="$serials localhost:600$n"; done
+          r=0; bash scripts/pool-join.sh out/pool $serials || r=$?
+          { echo "### Pool (rc $r)"; echo '```'; cat out/pool/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
+
       - name: Remove credentials from the results
         if: always()
         env:
@@ -127,7 +134,7 @@ jobs:
                       t = t.replace(s, "***")
                   f.write_text(t)
           PY
-          rm -f out/ui.xml out/phone*/ui.xml
+          rm -f out/ui.xml out/phone*/ui.xml out/pool/ui.xml
 
       - name: Upload screenshots
         if: always()
@@ -149,7 +156,7 @@ jobs:
             echo "Run [#$GITHUB_RUN_NUMBER]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID), $(date -u '+%Y-%m-%d %H:%M UTC')"
             echo
             echo '```'; cat out/network.txt 2>/dev/null; echo '```'
-            for d in $(cd out && ls -d phone* 2>/dev/null); do
+            for d in $(cd out && ls -d phone* pool 2>/dev/null); do
               echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null; echo '```'
               for f in $(cd "out/$d" && ls *.png 2>/dev/null); do echo; echo "## $d - ${f%.png}"; echo; echo "<img src=\"$d/$f\" width=\"300\">"; done
             done
