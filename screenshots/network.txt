@@ -1,6 +1,2 @@
 Phone 1 -> phone 2 (172.30.0.12): reachable
-Phone 1 -> phone 3 (172.30.0.13): reachable
 Phone 2 -> phone 1 (172.30.0.11): reachable
-Phone 2 -> phone 3 (172.30.0.13): reachable
-Phone 3 -> phone 1 (172.30.0.11): reachable
-Phone 3 -> phone 2 (172.30.0.12): reachable
