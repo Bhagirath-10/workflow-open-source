@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Presses Start in 4bTech Game on every phone (after pool-join.sh put them in one pool), then
-# takes screenshots right after and a while later. Screen texts go to <out-dir>/notes.txt.
+# takes screenshots right after and a while later, then 4bTech Space's home screen (the clones). Screen texts go to <out-dir>/notes.txt.
 #
 #   press-start.sh <out-dir> <adb-serial-1> [<adb-serial-2> ...]
 set -uo pipefail
@@ -43,6 +43,12 @@ for i in "${!PHONES[@]}"; do
   top=$(a shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')
   say "## phone $P 1 minute after Start: $top"
   say "  screen: $(screen_text)"; shot 3-1min
+done
+# Then 4bTech Space's home screen on every phone: the clones 4bTech Game made after Start.
+for i in "${!PHONES[@]}"; do
+  S=${PHONES[$i]}; P=$((i + 1))
+  a shell am start -W -n com.fourbtech.space/.MainActivity >/dev/null 2>&1; sleep 5
+  say "## phone $P: 4bTech Space home after Start: $(screen_text)"; shot 4-space-clones
 done
 say "DONE Start pressed on ${#PHONES[@]} phones"
 exit $RC
