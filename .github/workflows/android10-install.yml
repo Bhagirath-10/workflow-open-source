@@ -64,53 +64,16 @@ jobs:
           adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
           sleep 5; adb exec-out screencap -p > out/0-home.png
 
-      - name: Install the 3 APKs and screenshot each
-        run: |
-          RC=0; n=0
-          for f in 4bTech-Space.apk base.apk 4B-Rummy-Home.apk; do
-            n=$((n + 1)); name=${f%.apk}
-            before=$(adb shell pm list packages -3 | tr -d '\r' | sort)
-            if adb install -r -g "apk/$f" > "out/install-$name.txt" 2>&1; then
-              pkg=$(comm -13 <(echo "$before") <(adb shell pm list packages -3 | tr -d '\r' | sort) | head -1 | sed 's/^package://')
-              echo "PASS install $f ($pkg)" | tee -a out/notes.txt
-              if [ -n "$pkg" ]; then
-                ver=$(adb shell dumpsys package "$pkg" | tr -d '\r' | grep -m1 versionName | sed 's/ *versionName=//')
-                echo "  version $ver" | tee -a out/notes.txt
-                # Proof of install: the app's own App info page in Settings.
-                adb shell am start -W -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$pkg" >/dev/null 2>&1 || true
-                sleep 4; adb exec-out screencap -p > "out/$n-$name-1-appinfo.png"
-                adb shell input keyevent KEYCODE_HOME; sleep 1
-                # Open it through its launcher activity and screenshot what is on screen.
-                act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$pkg" | tr -d '\r' | tail -1)
-                adb logcat -c
-                adb shell am start -W -n "$act" > "out/launch-$name.txt" 2>&1 || true
-                sleep 25
-                adb exec-out screencap -p > "out/$n-$name-2-open.png"
-                top=$(adb shell dumpsys activity activities | tr -d '\r' | grep -m1 -E "mResumedActivity|topResumedActivity" | sed 's/^ *//')
-                echo "  launch $act -> on screen: $top" | tee -a out/notes.txt
-                adb logcat -d -b crash > "out/crash-$name.txt" 2>/dev/null || true
-                [ -s "out/crash-$name.txt" ] && echo "  CRASH log: crash-$name.txt" | tee -a out/notes.txt
-                adb shell am force-stop "$pkg"; adb shell input keyevent KEYCODE_HOME; sleep 2
-              fi
-            else
-              RC=1; echo "FAIL install $f: $(tail -1 "out/install-$name.txt")" | tee -a out/notes.txt
-            fi
-          done
-          adb exec-out screencap -p > out/9-final.png
-          adb shell pm list packages -3 | tr -d '\r' > out/packages.txt
-          { echo '```'; cat out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          echo "RC=$RC" >> "$GITHUB_ENV"
-
-      - name: 4bTech Game - permissions and sign-in
-        if: env.RC == '0'
+      - name: Full cycle - install, sign in, Setup (scripts/full-cycle.sh)
         env:
           FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
           FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
           FOUR_BTECH_GAME_NAME: ${{ secrets.FOUR_BTECH_GAME_NAME }}
           FOUR_BTECH_GAME_MOBILE: ${{ secrets.FOUR_BTECH_GAME_MOBILE }}
         run: |
-          if bash scripts/bot-setup.sh out; then bash scripts/bot-configure.sh out || echo "RC=1" >> "$GITHUB_ENV"; else echo "RC=1" >> "$GITHUB_ENV"; fi
-          { echo '```'; sed -n '/## 4bTech Game/,$p' out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          RC=0; bash scripts/full-cycle.sh apk out || RC=$?
+          { echo '```'; cat out/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "RC=$RC" >> "$GITHUB_ENV"
 
       - name: Remove credentials from the results
         if: always()
@@ -159,6 +122,6 @@ jobs:
           git add screenshots
           git commit -q -m "Screenshots from run #$GITHUB_RUN_NUMBER (Android 10)" && git push -q origin "HEAD:$GITHUB_REF_NAME" || echo "nothing to publish"
 
-      - name: Fail if an install failed
-        if: env.RC == '1'
+      - name: Fail if a step failed
+        if: env.RC != '0'
         run: exit 1

@@ -1,2 +1,46 @@
 # workflow-open-source
-workflow-free
+
+Sets up a fresh Android with 4bTech Space, the game (RummyHome) and 4bTech Game, signs
+4bTech Game in and finishes its Setup. **Start is never pressed**: nothing is played.
+
+## The cycle
+
+| Step | Script | What it does |
+|---|---|---|
+| 1 | `scripts/install-apks.sh` | Installs `4bTech-Space.apk`, `base.apk` (RummyHome) and `4B-Rummy-Home.apk` (4bTech Game); App info + screenshot of each |
+| 2 | `scripts/bot-setup.sh` | 4bTech Game: permissions (accessibility, screen capture, unknown apps, overlay, no battery limit), lets it update itself, signs in |
+| 3 | `scripts/bot-configure.sh` | 4bTech Game Setup: 1. Screen permission (Accessibility › 4bTech Game › On › Allow), 2. Game = RummyHome, 3. Clone app = 4bTech Space, 4. Keep running |
+| all | `scripts/full-cycle.sh` | Runs 1 → 2 → 3 and stops at the first failure |
+
+Every screen is screenshotted and its texts go to `notes.txt`. `scripts/ui.py` finds buttons
+and fields on the screen from `uiautomator` dumps.
+
+## On GitHub Actions
+
+`.github/workflows/android10-install.yml`: one job on an ARM runner, real arm64 Android 10
+(Redroid). It downloads the APKs, runs `full-cycle.sh` and publishes the results to
+`screenshots/` on the branch (page: `screenshots/README.md`) and as the artifact `screenshots`.
+It runs when the workflow or a script changes; on the default branch it can also be started by
+hand (Actions › Run workflow).
+
+Repository secrets:
+
+| Secret | For |
+|---|---|
+| `PRIVATE_REPO` | token that can read the releases of `Bhautik-4B/Game-Auto` (4bTech Space and base.apk) |
+| `FOUR_BTECH_GAME_EMAIL` / `FOUR_BTECH_GAME_PASSWORD` | the 4bTech Game account |
+
+The secrets are never printed and are replaced by `***` in every published file; no screenshot is
+taken while the email is on screen. This repository is public: the published screenshots are too.
+
+## On a phone or another emulator
+
+Android with USB debugging (or any emulator) on `adb`, the three APKs in one folder:
+
+```bash
+export FOUR_BTECH_GAME_EMAIL='...' FOUR_BTECH_GAME_PASSWORD='...'
+bash scripts/full-cycle.sh path/to/apks out
+```
+
+`ANDROID_SERIAL` picks the device when several are connected. The scripts were made on a
+1080×2280 screen; the Setup button has a position fallback for that size only.
