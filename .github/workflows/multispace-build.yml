@@ -86,13 +86,25 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.13846066" >/dev/null
 
+      # A test build must install over the app on the phone: Android refuses a lower version code,
+      # so it gets the newest published version code + 1, and QA mode (no update lock, no tamper
+      # check). The release APK is signed with the test key, like the published builds.
+      - name: Version (newest published + 1, QA)
+        run: |
+          LATEST=$(curl -fsSL https://github.com/Bhautik-4B/Action-Auto/releases/download/APK/space-latest.json | jq -r '.code // empty' || true)
+          CODE=$(( ${LATEST:-10000} + 1 ))
+          NAME="$((CODE / 10000)).$((CODE / 100 % 100)).$((CODE % 100))"
+          echo "VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "Test version $NAME (code $CODE, newest published: ${LATEST:-unknown})" | tee -a "$GITHUB_STEP_SUMMARY"
+
       # Full output goes to a file (saved to the private repo); only error lines are shown here.
       - name: Build and unit tests
         working-directory: private
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           if gradle --no-daemon --console=plain --continue \
-               -PversionCode=$GITHUB_RUN_NUMBER -PversionName=0.1.$GITHUB_RUN_NUMBER \
+               -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME -Pqa=true \
                test :app:assembleDebug :app:assembleRelease :testing:guest-app:assembleDebug \
                >"$RUNNER_TEMP/out/build_log.txt" 2>&1; then
             echo "BUILD=ok" >> "$GITHUB_ENV"
@@ -114,7 +126,7 @@ jobs:
           FAILS=$( [ -n "$XML" ] && grep -ho '<testsuite [^>]*failures="[0-9]*"' $XML | grep -o 'failures="[0-9]*"' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}' || echo 0)
           {
             echo "### 4bTech Space build: ${BUILD:-failed}"
-            echo "Branch $PRIVATE_REF, commit $(git rev-parse --short HEAD), version 0.1.$GITHUB_RUN_NUMBER"
+            echo "Branch $PRIVATE_REF, commit $(git rev-parse --short HEAD), version $VERSION_NAME (code $VERSION_CODE)"
             echo "Unit tests: ${TESTS:-0} run, ${FAILS:-0} failed"
             echo '```'; awk '{printf "%6.1f MB  %s\n", $1/1048576, $2}' "$OUT/apks.txt"; echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
@@ -128,7 +140,7 @@ jobs:
           TAG="multispace-ci-${PRIVATE_REF//\//-}"
           mkdir -p "$RUNNER_TEMP/rel"
           for f in $(find private -path '*/build/outputs/apk/*' -name '*.apk'); do
-            cp "$f" "$RUNNER_TEMP/rel/$(basename "${f%.apk}")-0.1.$GITHUB_RUN_NUMBER.apk"
+            cp "$f" "$RUNNER_TEMP/rel/$(basename "$f")"
           done
           gh release view "$TAG" --repo "$MS_REPO" >/dev/null 2>&1 \
             || gh release create "$TAG" --repo "$MS_REPO" --prerelease --target "$PRIVATE_REF" \
