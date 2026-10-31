@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Puts 2 or 3 phones (same Wi-Fi) in one 4bTech Game pool, after full-cycle.sh has finished Setup:
 #   every phone:  open 4bTech Game, scroll down a little, PLAY › select the last tab "Pool"
-#   first phone:  tap "Show code" and read the pool code from the screen
+#   first phone:  tap "New pool code" and read the pool code from the screen
 #   other phones: enter that code and join
+# Screens uiautomator cannot read are read from the screenshot (scripts/ocr.py, Tesseract).
 # Start is never pressed. Screenshots and screen texts go to <out-dir> (notes.txt).
 #
 #   pool-join.sh <out-dir> <adb-serial-1> <adb-serial-2> [<adb-serial-3> ...]
@@ -44,6 +45,11 @@ tap() {
   local xy; dump; xy=$(find text "$1") || return 1
   say "  tap: $2"; a shell input tap $xy; sleep 3
 }
+# Screens uiautomator cannot read (the home screen's moving parts): read the screenshot (OCR).
+ocr() { a exec-out screencap -p > "$OUT/screen.png"; python3 -I "$HERE/ocr.py" "$OUT/screen.png" "$@" 2>/dev/null; }
+# locate <uiautomator regex> <OCR phrase(s)>: centre "x y" from the dump, else from the screenshot.
+locate() { dump && find text "$1" && return 0; ocr find "$2"; }
+screen_text() { dump && texts && return 0; ocr text | tr '\n' '|' | cut -c1-600; }
 # The pool code on the screen: a short word of capital letters and digits (with a digit),
 # or 4-8 digits; the nodes right after a "code" label first.
 read_code() { python3 -I - "$OUT/ui.xml" <<'PY'
@@ -73,53 +79,63 @@ select_pool() {
   local k; for k in window_animation_scale transition_animation_scale animator_duration_scale; do
     a shell settings put global $k 0; done
   a shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 4
-  local i xy
+  local i xy=""
   for i in 1 2 3 4; do
     a shell input swipe 540 1700 540 1100 400; sleep 2          # scroll down a little
-    dump && find text "Pool" >/dev/null && break
+    xy=$( (dump && find text "Pool") || ocr findin Alone "Pool") && break
   done
   shot 1-play
-  if xy=$(find text "Pool"); then
-    say "  tap: PLAY › Pool"; a shell input tap $xy; sleep 3
+  if [ -n "$xy" ]; then
+    say "  tap: PLAY › Pool ($xy)"; a shell input tap $xy; sleep 3
   else
-    # Screen not readable: scrolled to the bottom, the Pool tab (last of the three) is at
-    # 843,1212 on the 1080x2280 screen.
-    say "  screen not readable; scrolled to the bottom, tapping the Pool tab by position"
+    # Not found: scrolled to the bottom, the Pool tab is at 843,1212 on the 1080x2280 screen.
+    say "  Pool tab not found on the screen; scrolled to the bottom, tapping it by position"
     for i in 1 2 3; do a shell input swipe 540 1700 540 900 300; sleep 1; done
     a shell input tap 843 1212; sleep 3
   fi
   a shell input swipe 540 1700 540 1300 400; sleep 2            # bring the pool part into view
-  dump; say "  screen: $(texts)"; shot 2-pool
+  say "  screen: $(screen_text)"; shot 2-pool
 }
 
-# First phone: "Show code" › read the code.
+# First phone: "New pool code" › read the code from the code box.
 show_code() {
-  say "## phone $P ($S): show the pool code"
-  tap "Show code|Show pool code|Show Code|SHOW CODE|Create pool|Create a pool|New pool|Host|Get code" "Show code" \
-    || say "  no Show code button; reading the code from the screen as it is"
-  sleep 2; dump; say "  screen: $(texts)"; shot 3-code
-  CODE=${POOL_CODE:-$(read_code)}
+  say "## phone $P ($S): new pool code"
+  local xy e
+  if xy=$(locate "New pool code|Show code|Show pool code" "New pool code|Show code"); then :
+  elif e=$(ocr find "Enter code"); then
+    xy="303 ${e#* }"                                 # same row as Enter code, left button
+  else
+    say "FAIL phone $P: no New pool code button: $(screen_text)"; shot 3-no-button; return 1
+  fi
+  say "  tap: New pool code ($xy)"; a shell input tap $xy; sleep 4
+  local i
+  for i in 1 2 3; do
+    CODE=${POOL_CODE:-$( (dump && read_code) || ocr code)}
+    [ -n "$CODE" ] && break; sleep 3
+  done
+  say "  screen: $(screen_text)"; shot 3-code
   [ -n "$CODE" ] || { say "FAIL phone $P: no pool code on the screen"; return 1; }
   say "  pool code: $CODE"
-  # the code stays on the first phone's screen while the others join
 }
 
-# Other phones: enter the code › join.
+# Other phones: "Enter code" › type the code › Join.
 join_pool() {
   say "## phone $P ($S): enter code $CODE"
-  dump
-  find edit 0 >/dev/null || tap "Enter code|Enter pool code|Join|Join pool|Join a pool|Have a code\\?.*|Use code|I have a code" "Enter code" \
-    || true
-  dump; local xy; xy=$(find edit 0) || { say "FAIL phone $P: no box for the code: $(texts)"; shot 3-no-code-box; return 1; }
-  a shell input tap $xy; sleep 1
+  local xy
+  xy=$(locate "Enter code|Enter pool code" "Enter code") || { say "FAIL phone $P: no Enter code button: $(screen_text)"; shot 3-no-button; return 1; }
+  say "  tap: Enter code ($xy)"; a shell input tap $xy; sleep 3
+  say "  screen: $(screen_text)"; shot 3-enter-code
+  if dump && xy=$(find edit 0); then a shell input tap $xy; sleep 1; fi   # else the box has the focus already
   a shell input keyevent KEYCODE_MOVE_END; for _ in $(seq 1 12); do a shell input keyevent KEYCODE_DEL; done
   a shell input text "$CODE"; sleep 1
-  shot 3-code-entered
-  if ! tap "Join|JOIN|Join pool|Connect|CONNECT|OK|Done|Save|Enter" "Join"; then
-    a shell input keyevent KEYCODE_BACK; sleep 1                    # hide the keyboard, then try again
-    tap "Join|JOIN|Join pool|Connect|CONNECT|OK|Done|Save|Enter" "Join" || a shell input keyevent KEYCODE_ENTER
+  shot 4-code-typed
+  local ok="Join|JOIN|Join pool|Connect|CONNECT|OK|Done|Save|Use code"
+  if xy=$(locate "$ok" "Join pool|Join|Connect|OK|Done|Save|Use code"); then
+    say "  tap: Join ($xy)"; a shell input tap $xy
+  else
+    say "  no Join button found; pressing Enter"; a shell input keyevent KEYCODE_ENTER
   fi
-  sleep 4; dump; say "  screen: $(texts)"; shot 4-joined
+  sleep 5; say "  screen: $(screen_text)"; shot 5-joined
 }
 
 RC=0; CODE=""
@@ -134,10 +150,10 @@ done
 # Every phone's pool screen at the end (the first phone should list the others).
 sleep 5
 for i in "${!PHONES[@]}"; do
-  S=${PHONES[$i]}; P=$((i + 1)); dump
-  say "## phone $P at the end: $(texts)"; shot 5-final
+  S=${PHONES[$i]}; P=$((i + 1))
+  say "## phone $P at the end: $(screen_text)"; shot 6-final
 done
-rm -f "$OUT/ui.xml"
+rm -f "$OUT/ui.xml" "$OUT"/screen.png*
 [ "$RC" = 0 ] && say "PASS pool: phone 1 showed code $CODE, phones 2..${#PHONES[@]} entered it (Start not pressed)" \
               || say "FAIL pool: see the steps above"
 exit $RC

@@ -62,6 +62,7 @@ jobs:
         run: |
           sudo apt-get update -qq >/dev/null
           sudo apt-get install -y -qq adb "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb >/dev/null
+          sudo apt-get install -y -qq tesseract-ocr python3-pil >/dev/null
           sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
           sudo modprobe ashmem_linux 2>/dev/null || true
           docker pull -q redroid/redroid:10.0.0-latest >/dev/null
