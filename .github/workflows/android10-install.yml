@@ -43,7 +43,7 @@ jobs:
   android10:
     name: Android 10 (ARM) - install and screenshot
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -116,6 +116,14 @@ jobs:
           r=0; bash scripts/pool-join.sh out/pool $serials || r=$?
           { echo "### Pool (rc $r)"; echo '```'; cat out/pool/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
+          echo "POOL_RC=$r" >> "$GITHUB_ENV"
+
+      - name: Start - press Start on every phone once all are in one pool (scripts/press-start.sh)
+        if: env.POOL_RC == '0'
+        run: |
+          serials=""; for n in $(seq 1 "$DEVICES"); do serials="$serials localhost:600$n"; done
+          bash scripts/press-start.sh out/start $serials || echo "RC=1" >> "$GITHUB_ENV"
+          { echo "### Start"; echo '```'; cat out/start/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove credentials from the results
         if: always()
@@ -135,7 +143,7 @@ jobs:
                       t = t.replace(s, "***")
                   f.write_text(t)
           PY
-          rm -f out/ui.xml out/phone*/ui.xml out/pool/ui.xml
+          rm -f out/ui.xml out/phone*/ui.xml out/pool/ui.xml out/start/ui.xml
 
       - name: Upload screenshots
         if: always()
@@ -157,7 +165,7 @@ jobs:
             echo "Run [#$GITHUB_RUN_NUMBER]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID), $(date -u '+%Y-%m-%d %H:%M UTC')"
             echo
             echo '```'; cat out/network.txt 2>/dev/null; echo '```'
-            for d in $(cd out && ls -d phone* pool 2>/dev/null); do
+            for d in $(cd out && ls -d phone* pool start 2>/dev/null); do
               echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null; echo '```'
               for f in $(cd "out/$d" && ls *.png 2>/dev/null); do echo; echo "## $d - ${f%.png}"; echo; echo "<img src=\"$d/$f\" width=\"300\">"; done
             done
