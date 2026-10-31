@@ -17,7 +17,11 @@ on:
   push:
     paths:
       - .github/workflows/android10-install.yml
-      - scripts/**
+      - scripts/full-cycle.sh
+      - scripts/install-apks.sh
+      - scripts/bot-setup.sh
+      - scripts/bot-configure.sh
+      - scripts/ui.py
 
 permissions:
   contents: write

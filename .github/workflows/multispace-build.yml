@@ -34,6 +34,8 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      token: ${{ steps.token.outputs.name }}
     steps:
       # Tries each token secret (only names are printed) and uses the first one that can
       # read the private repo, preferring one that can also write (results, releases).
@@ -163,3 +165,63 @@ jobs:
         run: |
           [ "$BUILD" = ok ] || { echo "::error::build failed (log in the private repo, branch results)"; exit 1; }
           [ "${FAILS:-0}" = 0 ] || { echo "::error::$FAILS unit test(s) failed"; exit 1; }
+
+  # On real arm64 Android 11 (Redroid): Export -> Import proof with the debug build, then
+  # screenshots of the multi-select screens (scripts/space-select-tour.sh). Screenshots and
+  # notes go to the private repo's branch "results" (not this public repo).
+  tour:
+    name: export/import proof and screenshots (Android 11, ARM)
+    needs: build
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      ANDROID_SERIAL: localhost:6000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Results script of the private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MS_REPO }}
+          ref: ${{ env.PRIVATE_REF }}
+          token: ${{ secrets[needs.build.outputs.token] }}
+          path: private
+          sparse-checkout: scripts/ci
+
+      - name: Debug APK and guest app (private CI release)
+        env:
+          GH_TOKEN: ${{ secrets[needs.build.outputs.token] }}
+        run: |
+          TAG="multispace-ci-${PRIVATE_REF//\//-}"
+          mkdir -p apk
+          gh release download "$TAG" --repo "$MS_REPO" --pattern '*-debug-universal.apk' --pattern 'guest-app-debug.apk' --dir apk
+          ls -l apk
+
+      - name: Start Android 11 (Redroid, arm64)
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq adb "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb >/dev/null
+          sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
+          sudo modprobe ashmem_linux 2>/dev/null || true
+          docker pull -q redroid/redroid:11.0.0-latest >/dev/null
+          docker run -d --name android --privileged --memory=6g --cpus=4 -p 6000:5555 redroid/redroid:11.0.0-latest \
+            androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420
+          for i in $(seq 1 84); do adb connect localhost:6000 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
+          [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || { echo "::error::Android did not boot"; exit 1; }
+
+      - name: Export / Import proof and screenshots
+        run: |
+          RC=0; bash scripts/space-select-tour.sh apk/*-debug-universal.apk apk/guest-app-debug.apk "$RUNNER_TEMP/out/select-tour" || RC=$?
+          { echo "### Export / Import on Android 11"; echo '```'; grep -E "PASS|FAIL|import OK|export OK" "$RUNNER_TEMP/out/select-tour/notes.txt"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "RC=$RC" >> "$GITHUB_ENV"
+
+      - name: Save screenshots to the private repo (branch "results")
+        if: always()
+        env:
+          TOKEN: ${{ secrets[needs.build.outputs.token] }}
+          PRIVATE_REPO: ${{ env.MS_REPO }}
+        run: bash private/scripts/ci/save-results.sh "$RUNNER_TEMP/out" select-tour | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if the proof failed
+        if: env.RC != '0'
+        run: exit 1
