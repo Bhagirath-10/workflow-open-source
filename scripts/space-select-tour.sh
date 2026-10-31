@@ -132,7 +132,13 @@ for attempt in wrong right; do
   fi
 done
 # Settings without Clone engine, Share app, Save log; the bin on the Hidden tab.
-adb shell am start -W -n $APP/.MainActivity --es route settings >/dev/null 2>&1; shot settings 3
+# The Import result dialogs, as a user sees them: a wrong password, then the right one.
+open_app
+cmd importui --es pw "wrong-pass-123" --es file two.4bspace; sleep 6; shot import-wrong-password 0
+tap "OK"
+cmd importui --es pw "$PW" --es file two.4bspace; sleep 1; shot import-running 0; sleep 8; shot import-done 0
+tap "OK"
+adb shell am force-stop $APP; adb shell am start -W -n $APP/.MainActivity --es route settings >/dev/null 2>&1; shot settings 3
 cmd remove --es pkg "$GUEST" --ei space 3; wait_log "remove OK" 20
 adb shell am force-stop $APP; adb shell am start -W -n $APP/.MainActivity --es route hidden >/dev/null 2>&1; shot hidden-bin 3
 # Long-press the first clone: the small menu next to it.
