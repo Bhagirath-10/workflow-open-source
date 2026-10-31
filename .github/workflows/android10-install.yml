@@ -237,9 +237,9 @@ jobs:
             echo
             echo "$ist - $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
-            echo '```'; cat out/network.txt 2>/dev/null; echo '```'
+            echo '```'; cat out/network.txt 2>/dev/null || true; echo '```'
             for d in $(cd out && ls -d phone* pool start 2>/dev/null); do
-              echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null; echo '```'
+              echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null || true; echo '```'
               for f in $(cd "out/$d" && ls *.png 2>/dev/null); do echo; echo "## $d - ${f%.png}"; echo; echo "<img src=\"$d/$f\" width=\"300\">"; done
             done
           } > "priv/$dest/README.md"
