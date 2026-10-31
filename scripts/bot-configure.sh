@@ -10,7 +10,18 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 NOTES="$OUT/notes.txt"
 say() { echo "$*" | tee -a "$NOTES"; }
 shot() { adb exec-out screencap -p > "$OUT/$N-$1.png"; N=$((N + 1)); }
-dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | tr -d '\r' > "$OUT/ui.xml"; }
+# The home screen's moving banner can make a dump fail ("could not get idle state"): retry.
+dump() {
+  local i
+  for i in 1 2 3 4 5; do
+    adb shell rm -f /sdcard/ui.xml
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    adb shell cat /sdcard/ui.xml 2>/dev/null | tr -d '\r' > "$OUT/ui.xml"
+    grep -q '<hierarchy' "$OUT/ui.xml" && return 0
+    sleep 2
+  done
+  echo '<hierarchy/>' > "$OUT/ui.xml"; return 1
+}
 find() { python3 -I "$HERE/ui.py" "$OUT/ui.xml" "$@" 2>/dev/null; }
 texts() { python3 -I - "$OUT/ui.xml" <<'PY'
 import sys, xml.etree.ElementTree as ET
@@ -31,8 +42,9 @@ tap_once() {
 
 say "## 4bTech Game: Setup (game Rummy Home, cloner 4bTech Space; Start is never pressed)"
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 4; dump
-xy=$(find id openSetup) || xy=$(find text "Setup|Open setup|Open Setup|Finish setup")
-[ -n "$xy" ] || { say "FAIL no Setup button on the home screen"; shot no-setup; exit 1; }
+xy=$(find id openSetup) || xy=$(find text "Setup|Open setup|Open Setup|Finish setup") || {
+  # Screen not readable: the Setup button of the "Setup needed" card (1080x2280 screen).
+  say "  home screen not readable; tapping the Setup button by position"; xy="878 1084"; }
 adb shell input tap $xy; sleep 4
 
 for step in $(seq 1 25); do
