@@ -1,10 +1,14 @@
 # Android 10 - install and screenshot
 
-Run [#18](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41186516690), 2026-10-31 09:01 UTC
+Run [#19](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41186829193), 2026-10-31 09:08 UTC
 
 ```
 Phone 1 -> phone 2 (172.30.0.12): reachable
+Phone 1 -> phone 3 (172.30.0.13): reachable
 Phone 2 -> phone 1 (172.30.0.11): reachable
+Phone 2 -> phone 3 (172.30.0.13): reachable
+Phone 3 -> phone 1 (172.30.0.11): reachable
+Phone 3 -> phone 2 (172.30.0.12): reachable
 ```
 
 # phone1
@@ -12,16 +16,16 @@ Phone 2 -> phone 1 (172.30.0.11): reachable
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1eb6445 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{dbaea8 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{bc09cf9 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{2a0b469 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{2e1d929 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{610ec67 u0 app.gameauto.phone/.AuthActivity t8}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s146ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -30,33 +34,58 @@ PASS app updated itself: 2.1.9-qa -> 2.1.13
 PASS signed in (app.gameauto.phone/.MainActivity)
 ## 4bTech Game: Setup (game Rummy Home, cloner 4bTech Space; Start is never pressed)
   home screen not readable; tapping the Setup button by position
-  screen 1 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | Install the game as usual, then pick it here. | Pick | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | Change | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most a
-  tap: pick
-  screen 2 [app.gameauto.phone]: Which app is the game? | Calendar | Clock | Contacts | Email | Files | Gallery | RummyHome | Search | Settings | WebView Browser Tester | Cancel
-  tap: game: Rummy Home
-  screen 3 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your ph
-  tap: game: Rummy Home
-  screen 4 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your ph
-  tap: Allow|Allow the settings|Grant|Turn on|Switch on|Enable|Open settings|Continue|Next|OK|Got it|GOT IT
-  screen 5 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | Off | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Large mouse pointer | Remove animations | INTERACTION CONTROLS
-  tap: Accessibility: 4bTech Game
-  screen 6 [com.android.settings]: Navigate up | 4bTech Game | Use service | OFF | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
-  tap: Accessibility: switch 4bTech Game on
-  screen 7 [com.android.settings]: Allow 4bTech Game to have full control of your device? | Full control is appropriate for apps that help you with accessibility needs, but not for most apps. | View and control screen | It can read all content on the screen and display content over other apps. | View and perform actions | It can track your interactions with an app or a hardware sensor, and interact with apps on your behalf. | ALLOW | DENY
-  tap: confirm
-  screen 8 [com.android.settings]: Navigate up | 4bTech Game | Use service | ON | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
+  screen 1 []: 
   back
-  screen 9 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | On | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Off | Large mouse pointer | Remove animations | INTERACTION CONTROLS
-  tap: Accessibility: 4bTech Game
-  screen 10 [com.android.settings]: Navigate up | 4bTech Game | Use service | ON | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
+  screen 2 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
   back
-  screen 11 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | On | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Off | Large mouse pointer | Remove animations | INTERACTION CONTROLS
+  screen 3 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
   back
-  screen 12 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | 1. Screen permission | Allowed. The app can see the game and tap for you. | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your phone, no extra app needed. | Set up | Clones already in the cloner app are used as they are. When there is none, the app adds them itsel
-  nothing left to tap on this screen
-  accessibility services on: app.gameauto.phone/app.gameauto.phone.BotService
-PASS Setup done (game RummyHome, cloner 4bTech Space); Start not pressed
-PASS full cycle: installed, signed in, Setup done (Start not pressed)
+  screen 4 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 5 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 6 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 7 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 8 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 9 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 10 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 11 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 12 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 13 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 14 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 15 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 16 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 17 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 18 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 19 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 20 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 21 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 22 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 23 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 24 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 25 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  accessibility services on: null
+FAIL could not read the Setup screen
 ```
 
 ## phone1 - 0-home
@@ -155,13 +184,65 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 
 <img src="phone1/41-setup-12.png" width="300">
 
-## phone1 - 42-setup-final
+## phone1 - 42-setup-13
 
-<img src="phone1/42-setup-final.png" width="300">
+<img src="phone1/42-setup-13.png" width="300">
 
-## phone1 - 43-home-after-setup
+## phone1 - 43-setup-14
 
-<img src="phone1/43-home-after-setup.png" width="300">
+<img src="phone1/43-setup-14.png" width="300">
+
+## phone1 - 44-setup-15
+
+<img src="phone1/44-setup-15.png" width="300">
+
+## phone1 - 45-setup-16
+
+<img src="phone1/45-setup-16.png" width="300">
+
+## phone1 - 46-setup-17
+
+<img src="phone1/46-setup-17.png" width="300">
+
+## phone1 - 47-setup-18
+
+<img src="phone1/47-setup-18.png" width="300">
+
+## phone1 - 48-setup-19
+
+<img src="phone1/48-setup-19.png" width="300">
+
+## phone1 - 49-setup-20
+
+<img src="phone1/49-setup-20.png" width="300">
+
+## phone1 - 50-setup-21
+
+<img src="phone1/50-setup-21.png" width="300">
+
+## phone1 - 51-setup-22
+
+<img src="phone1/51-setup-22.png" width="300">
+
+## phone1 - 52-setup-23
+
+<img src="phone1/52-setup-23.png" width="300">
+
+## phone1 - 53-setup-24
+
+<img src="phone1/53-setup-24.png" width="300">
+
+## phone1 - 54-setup-25
+
+<img src="phone1/54-setup-25.png" width="300">
+
+## phone1 - 55-setup-final
+
+<img src="phone1/55-setup-final.png" width="300">
+
+## phone1 - 56-home-after-setup
+
+<img src="phone1/56-home-after-setup.png" width="300">
 
 ## phone1 - 9-final
 
@@ -172,16 +253,16 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{78eca46 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{4f476eb u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{4cd0182 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{a7f2f60 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{d6eaef2 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1a6b7ac u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s353ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s251ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -326,3 +407,240 @@ PASS full cycle: installed, signed in, Setup done (Start not pressed)
 ## phone2 - 9-final
 
 <img src="phone2/9-final.png" width="300">
+
+# phone3
+
+```
+PASS install 4bTech-Space.apk (com.fourbtech.space)
+  version 1.1.5
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{4a1439e u0 com.fourbtech.space/.MainActivity t6}
+PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
+  version 1.0
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{fbefb4e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
+  version 2.1.9-qa
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{475105d u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+## 4bTech Game: permissions and sign-in
+PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s114ms ago 
+  battery optimisation off: 1 entry
+PASS app updated itself: 2.1.9-qa -> 2.1.13
+  app version 2.1.13
+  secrets: email 22 chars (22 trimmed), password 13 chars (13 trimmed)
+  backend https://4brummyhome.synoventum.us.cc/api/v1/auth/login: HTTP 400 error=invalid_request, message=The request body or query is not valid. 
+PASS signed in (app.gameauto.phone/.MainActivity)
+## 4bTech Game: Setup (game Rummy Home, cloner 4bTech Space; Start is never pressed)
+  home screen not readable; tapping the Setup button by position
+  screen 1 []: 
+  back
+  screen 2 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 3 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 4 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 5 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 6 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 7 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 8 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 9 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 10 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 11 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 12 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 13 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 14 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 15 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 16 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 17 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 18 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 19 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 20 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 21 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 22 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 23 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 24 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 25 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  accessibility services on: null
+FAIL could not read the Setup screen
+```
+
+## phone3 - 0-home
+
+<img src="phone3/0-home.png" width="300">
+
+## phone3 - 1-4bTech-Space-1-appinfo
+
+<img src="phone3/1-4bTech-Space-1-appinfo.png" width="300">
+
+## phone3 - 1-4bTech-Space-2-open
+
+<img src="phone3/1-4bTech-Space-2-open.png" width="300">
+
+## phone3 - 10-accessibility-settings
+
+<img src="phone3/10-accessibility-settings.png" width="300">
+
+## phone3 - 11-installer-1
+
+<img src="phone3/11-installer-1.png" width="300">
+
+## phone3 - 12-app-open
+
+<img src="phone3/12-app-open.png" width="300">
+
+## phone3 - 13-signed-in
+
+<img src="phone3/13-signed-in.png" width="300">
+
+## phone3 - 14-signed-in-later
+
+<img src="phone3/14-signed-in-later.png" width="300">
+
+## phone3 - 2-base-1-appinfo
+
+<img src="phone3/2-base-1-appinfo.png" width="300">
+
+## phone3 - 2-base-2-open
+
+<img src="phone3/2-base-2-open.png" width="300">
+
+## phone3 - 3-4B-Rummy-Home-1-appinfo
+
+<img src="phone3/3-4B-Rummy-Home-1-appinfo.png" width="300">
+
+## phone3 - 3-4B-Rummy-Home-2-open
+
+<img src="phone3/3-4B-Rummy-Home-2-open.png" width="300">
+
+## phone3 - 30-setup-1
+
+<img src="phone3/30-setup-1.png" width="300">
+
+## phone3 - 31-setup-2
+
+<img src="phone3/31-setup-2.png" width="300">
+
+## phone3 - 32-setup-3
+
+<img src="phone3/32-setup-3.png" width="300">
+
+## phone3 - 33-setup-4
+
+<img src="phone3/33-setup-4.png" width="300">
+
+## phone3 - 34-setup-5
+
+<img src="phone3/34-setup-5.png" width="300">
+
+## phone3 - 35-setup-6
+
+<img src="phone3/35-setup-6.png" width="300">
+
+## phone3 - 36-setup-7
+
+<img src="phone3/36-setup-7.png" width="300">
+
+## phone3 - 37-setup-8
+
+<img src="phone3/37-setup-8.png" width="300">
+
+## phone3 - 38-setup-9
+
+<img src="phone3/38-setup-9.png" width="300">
+
+## phone3 - 39-setup-10
+
+<img src="phone3/39-setup-10.png" width="300">
+
+## phone3 - 40-setup-11
+
+<img src="phone3/40-setup-11.png" width="300">
+
+## phone3 - 41-setup-12
+
+<img src="phone3/41-setup-12.png" width="300">
+
+## phone3 - 42-setup-13
+
+<img src="phone3/42-setup-13.png" width="300">
+
+## phone3 - 43-setup-14
+
+<img src="phone3/43-setup-14.png" width="300">
+
+## phone3 - 44-setup-15
+
+<img src="phone3/44-setup-15.png" width="300">
+
+## phone3 - 45-setup-16
+
+<img src="phone3/45-setup-16.png" width="300">
+
+## phone3 - 46-setup-17
+
+<img src="phone3/46-setup-17.png" width="300">
+
+## phone3 - 47-setup-18
+
+<img src="phone3/47-setup-18.png" width="300">
+
+## phone3 - 48-setup-19
+
+<img src="phone3/48-setup-19.png" width="300">
+
+## phone3 - 49-setup-20
+
+<img src="phone3/49-setup-20.png" width="300">
+
+## phone3 - 50-setup-21
+
+<img src="phone3/50-setup-21.png" width="300">
+
+## phone3 - 51-setup-22
+
+<img src="phone3/51-setup-22.png" width="300">
+
+## phone3 - 52-setup-23
+
+<img src="phone3/52-setup-23.png" width="300">
+
+## phone3 - 53-setup-24
+
+<img src="phone3/53-setup-24.png" width="300">
+
+## phone3 - 54-setup-25
+
+<img src="phone3/54-setup-25.png" width="300">
+
+## phone3 - 55-setup-final
+
+<img src="phone3/55-setup-final.png" width="300">
+
+## phone3 - 56-home-after-setup
+
+<img src="phone3/56-home-after-setup.png" width="300">
+
+## phone3 - 9-final
+
+<img src="phone3/9-final.png" width="300">

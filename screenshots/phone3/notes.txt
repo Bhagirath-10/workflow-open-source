@@ -1,0 +1,72 @@
+PASS install 4bTech-Space.apk (com.fourbtech.space)
+  version 1.1.5
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{4a1439e u0 com.fourbtech.space/.MainActivity t6}
+PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
+  version 1.0
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{fbefb4e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
+  version 2.1.9-qa
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{475105d u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+## 4bTech Game: permissions and sign-in
+PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s114ms ago 
+  battery optimisation off: 1 entry
+PASS app updated itself: 2.1.9-qa -> 2.1.13
+  app version 2.1.13
+  secrets: email 22 chars (22 trimmed), password 13 chars (13 trimmed)
+  backend https://4brummyhome.synoventum.us.cc/api/v1/auth/login: HTTP 400 error=invalid_request, message=The request body or query is not valid. 
+PASS signed in (app.gameauto.phone/.MainActivity)
+## 4bTech Game: Setup (game Rummy Home, cloner 4bTech Space; Start is never pressed)
+  home screen not readable; tapping the Setup button by position
+  screen 1 []: 
+  back
+  screen 2 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 3 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 4 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 5 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 6 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 7 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 8 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 9 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 10 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 11 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 12 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 13 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 14 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 15 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 16 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 17 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 18 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 19 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 20 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 21 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 22 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 23 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 24 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  screen 25 [com.android.launcher3]: Apps list | Search | Email | Gallery | Contacts | WebView Browser Tester
+  back
+  accessibility services on: null
+FAIL could not read the Setup screen

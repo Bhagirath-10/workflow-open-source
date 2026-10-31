@@ -1,15 +1,15 @@
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.5
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{78eca46 u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{4f476eb u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{4cd0182 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{a7f2f60 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{d6eaef2 u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1a6b7ac u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s353ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s251ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
