@@ -101,7 +101,9 @@ select_pool() {
 show_code() {
   say "## phone $P ($S): new pool code"
   local xy e
-  if xy=$(locate "New pool code|Show code|Show pool code" "New pool code|Show code"); then :
+  # (OCR is not used for this button: its white text is not read, and "new pool code" is also in
+  # the hint under the buttons.)
+  if dump && xy=$(find text "New pool code|Show code|Show pool code"); then :
   elif e=$(ocr find "Enter code"); then
     xy="303 ${e#* }"                                 # same row as Enter code, left button
   else
@@ -138,6 +140,7 @@ join_pool() {
   sleep 5; say "  screen: $(screen_text)"; shot 5-joined
 }
 
+trap 'rm -f "$OUT/ui.xml" "$OUT"/screen.png*' EXIT
 RC=0; CODE=""
 for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); select_pool || RC=1; done
 S=${PHONES[0]}; P=1
