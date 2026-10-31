@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.fourbtech.space/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.fourbtech.space/.MainActivity
+TotalTime: 473
+WaitTime: 473
+Complete
