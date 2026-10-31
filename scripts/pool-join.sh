@@ -113,7 +113,8 @@ show_code() {
   local i
   for i in 1 2 3; do
     CODE=${POOL_CODE:-$( (dump && read_code) || ocr code)}
-    [ -n "$CODE" ] && break; sleep 3
+    [ "${#CODE}" = 8 ] && break                    # the app's codes are 8 letters
+    [ -n "$CODE" ] && say "  read \"$CODE\" (not 8 letters), reading again"; sleep 3
   done
   say "  screen: $(screen_text)"; shot 3-code
   [ -n "$CODE" ] || { say "FAIL phone $P: no pool code on the screen"; return 1; }
@@ -153,10 +154,12 @@ done
 # Every phone's pool screen at the end (the first phone should list the others).
 sleep 5
 for i in "${!PHONES[@]}"; do
-  S=${PHONES[$i]}; P=$((i + 1))
-  say "## phone $P at the end: $(screen_text)"; shot 6-final
+  S=${PHONES[$i]}; P=$((i + 1)); t=$(screen_text)
+  say "## phone $P at the end: $t"; shot 6-final
+  # every phone should count all the phones: "3 phones in the pool"
+  grep -Eq "${#PHONES[@]} (phones )?in the pool" <<< "$t" || { say "FAIL phone $P does not show ${#PHONES[@]} phones in the pool"; RC=1; }
 done
 rm -f "$OUT/ui.xml" "$OUT"/screen.png*
-[ "$RC" = 0 ] && say "PASS pool: phone 1 showed code $CODE, phones 2..${#PHONES[@]} entered it (Start not pressed)" \
+[ "$RC" = 0 ] && say "PASS pool: phone 1 showed code $CODE, phones 2..${#PHONES[@]} entered it, all show ${#PHONES[@]} phones in the pool (Start not pressed)" \
               || say "FAIL pool: see the steps above"
 exit $RC

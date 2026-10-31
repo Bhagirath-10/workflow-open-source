@@ -63,18 +63,43 @@ def find(ws, phrases, anchor=None):
 
 def code(png, ws):
     """The code box sits right above the "New pool code / Enter code" buttons (about 100-250
-    pixels higher); its big spaced-out letters are read as one line and joined."""
+    pixels higher). Its big spaced-out letters are cut apart by the empty columns between them
+    and read one by one (capital letters and digits only)."""
     from PIL import Image
     at = find(ws, "Enter code")
     if not at:
         return None
     y = int(at.split()[1])
-    box = Image.open(png).crop((84, max(0, y - 260), 996, y - 85))
-    path = png + ".code.png"
+    box = Image.open(png).convert("L").crop((100, max(0, y - 250), 980, y - 100))
+    path = png + ".box.png"
     box.save(path)
-    t = subprocess.run(["tesseract", path, "-", "--psm", "7"], capture_output=True, text=True).stdout
-    t = re.sub(r"[^A-Za-z0-9]", "", t)
-    return t if len(t) >= 4 and norm(t) != "nopoolyet" else None
+    line = subprocess.run(["tesseract", path, "-", "--psm", "7"], capture_output=True, text=True).stdout
+    if "pool" in norm(line):                                     # "No pool yet": no code made
+        return None
+    ink = box.point(lambda v: 0 if v < 140 else 255)          # dark letters on the light box
+    w, h = ink.size
+    px = ink.load()
+    cols = [any(px[x, yy] == 0 for yy in range(h)) for x in range(w)]
+    runs, x = [], 0
+    while x < w:
+        if cols[x]:
+            x0 = x
+            while x < w and cols[x]:
+                x += 1
+            if x - x0 > 3:
+                runs.append((x0, x))
+        x += 1
+    out = ""
+    for x0, x1 in runs:
+        rows = [yy for yy in range(h) if any(px[xx, yy] == 0 for xx in range(x0, x1))]
+        ch = ink.crop((max(0, x0 - 12), max(0, rows[0] - 12), min(w, x1 + 12), min(h, rows[-1] + 13)))
+        path = png + ".ch.png"
+        ch.save(path)
+        t = subprocess.run(["tesseract", path, "-", "--psm", "10", "-c",
+                            "tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"],
+                           capture_output=True, text=True).stdout.strip()
+        out += t[:1]
+    return out if len(out) >= 4 else None
 
 
 def main():
