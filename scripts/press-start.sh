@@ -17,7 +17,28 @@ screen_text() {
   python3 -I "$HERE/ocr.py" "$OUT/screen.png" text 2>/dev/null | tr '\n' '|' | cut -c1-600
 }
 
+# Pop-ups that stop the game: Android's "Viewing full screen ... GOT IT" (marked as already seen)
+# and permission questions from the game (it runs inside 4bTech Space: every permission 4bTech
+# Space asks for is given ahead of time).
+no_popups() {
+  a shell settings put secure immersive_mode_confirmations confirmed
+  local p
+  for p in $(a shell dumpsys package com.fourbtech.space 2>/dev/null | tr -d '\r' \
+             | sed -n '/requested permissions:/,/install permissions:/p' | grep -o 'android\.permission\.[A-Z_]*' | sort -u); do
+    a shell pm grant com.fourbtech.space "$p" >/dev/null 2>&1 || true
+  done
+}
+# Taps GOT IT / Allow when one is on screen (read from the screenshot).
+tap_popup() {
+  local xy
+  a exec-out screencap -p > "$OUT/screen.png"
+  xy=$(python3 -I "$HERE/ocr.py" "$OUT/screen.png" find "GOT IT|Got it|While using the app|Only this time|ALLOW|Allow" 2>/dev/null) || return 1
+  say "  phone $P: pop-up, tapping it ($xy): $(python3 -I "$HERE/ocr.py" "$OUT/screen.png" text 2>/dev/null | tr '\n' '|' | cut -c1-200)"
+  shot "popup-$(date +%H%M%S)"; a shell input tap $xy; sleep 2
+}
+
 RC=0
+for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); no_popups; done
 for i in "${!PHONES[@]}"; do
   S=${PHONES[$i]}; P=$((i + 1))
   say "## phone $P ($S): Start"
@@ -36,12 +57,16 @@ for i in "${!PHONES[@]}"; do
   say "  screen: $(screen_text)"; shot 2-after-start
 done
 
-# A while later: what every phone is doing.
-sleep 60
+# The first 2 minutes after Start: every 10 seconds, close a pop-up on any phone.
+for t in $(seq 1 12); do
+  for i in "${!PHONES[@]}"; do S=${PHONES[$i]}; P=$((i + 1)); tap_popup || true; done
+  sleep 5
+done
+# What every phone is doing now.
 for i in "${!PHONES[@]}"; do
   S=${PHONES[$i]}; P=$((i + 1))
   top=$(a shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')
-  say "## phone $P 1 minute after Start: $top"
+  say "## phone $P 2-3 minutes after Start: $top"
   say "  screen: $(screen_text)"; shot 3-1min
 done
 # Then 4bTech Space's home screen on every phone: the clones 4bTech Game made after Start.
