@@ -24,6 +24,13 @@ the private repo `Bhautik-4B/Game-Auto`, branch `workflow-results`, folder `runs
 It runs when the workflow or a script changes; on the default branch it can also be started by
 hand (Actions › Run workflow).
 
+Run workflow options: `devices` (2 or 3 phones on one Wi-Fi), `mode` and `save`. With `save`, the
+phones' data (apps, sign-in, Setup, pool, clones) is saved at the end to the private release `phones`
+of `Bhautik-4B/Game-Auto`. `mode: restore` starts the next run from that data: install, sign-in and
+Setup are skipped, the run goes straight to the pool and Start. When nothing is saved for that many
+phones yet, the run sets up from scratch. Runs started by a push always set up from scratch and
+never save.
+
 Repository secrets:
 
 | Secret | For |

@@ -26,6 +26,15 @@ on:
         type: choice
         options: ["2", "3"]
         default: "2"
+      mode:
+        description: "restore = start from the saved phones (skips install, sign-in, Setup); fresh = set up from scratch"
+        type: choice
+        options: ["restore", "fresh"]
+        default: "restore"
+      save:
+        description: Save the phones at the end (for restore next time)
+        type: boolean
+        default: true
   push:
     paths:
       - .github/workflows/android10-install.yml
@@ -39,12 +48,16 @@ env:
   GAME_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/base.apk
   RUMMY_URL: https://github.com/Bhautik-4B/Action-Auto/releases/download/qa-v2.1.9-qa/4B-Rummy-Home-2.1.9-qa.apk
   DEVICES: ${{ inputs.devices || '2' }}
+  # Runs started by a push set up from scratch and never save (only Run workflow saves).
+  MODE: ${{ inputs.mode || 'fresh' }}
+  SAVE: ${{ github.event_name == 'workflow_dispatch' && inputs.save && 'yes' || 'no' }}
+  RC: "0"
 
 jobs:
   android10:
     name: Android 10 (ARM) - install and screenshot
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +72,33 @@ jobs:
           curl -fsSL -o apk/4B-Rummy-Home.apk "$RUMMY_URL"
           ls -l apk | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # Saved phones: the private release "phones" of Bhautik-4B/Game-Auto, one archive of /data per
+      # phone (phone<N>.tar.zst, split in parts under 2 GB). Restored only when all phones are there.
+      - name: Restore the saved phones (mode restore)
+        if: env.MODE == 'restore'
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
+        run: |
+          mkdir -p saved
+          ok=1
+          for n in $(seq 1 "$DEVICES"); do
+            gh release download phones --repo Bhautik-4B/Game-Auto --pattern "phone$n.tar.zst.*" --dir saved >/dev/null 2>&1 || ok=0
+            ls saved/phone$n.tar.zst.* >/dev/null 2>&1 || ok=0
+          done
+          if [ "$ok" = 1 ]; then
+            sudo apt-get install -y -qq zstd >/dev/null
+            for n in $(seq 1 "$DEVICES"); do
+              sudo mkdir -p "$HOME/phone$n-data"
+              cat saved/phone$n.tar.zst.* | sudo tar --numeric-owner --xattrs -I zstd -xf - -C "$HOME/phone$n-data"
+            done
+            rm -rf saved
+            echo "RESTORED=1" >> "$GITHUB_ENV"
+            echo "Restored $DEVICES saved phones: install, sign-in and Setup skipped" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            rm -rf saved
+            echo "No saved phones for $DEVICES phones yet: setting up from scratch" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Start Android 10 phones on the same Wi-Fi (Redroid, arm64, one Docker network)
         run: |
           sudo apt-get update -qq >/dev/null
@@ -69,8 +109,9 @@ jobs:
           docker pull -q redroid/redroid:10.0.0-latest >/dev/null
           docker network create --subnet 172.30.0.0/24 --gateway 172.30.0.1 wifi >/dev/null
           for n in $(seq 1 "$DEVICES"); do
+            sudo mkdir -p "$HOME/phone$n-data"                # the phone's /data: saved and restored
             docker run -d --name "android$n" --network wifi --ip "172.30.0.1$n" --privileged --memory=4g --cpus=4 \
-              -p "600$n:5555" redroid/redroid:10.0.0-latest \
+              -v "$HOME/phone$n-data:/data" -p "600$n:5555" redroid/redroid:10.0.0-latest \
               androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420
           done
           for n in $(seq 1 "$DEVICES"); do
@@ -92,6 +133,7 @@ jobs:
           for n in $(seq 1 "$DEVICES"); do adb -s "localhost:600$n" exec-out screencap -p > "out/phone$n/0-home.png"; done
 
       - name: Full cycle - install, sign in, Setup (scripts/full-cycle.sh)
+        if: env.RESTORED != '1'
         env:
           FOUR_BTECH_GAME_EMAIL: ${{ secrets.FOUR_BTECH_GAME_EMAIL }}
           FOUR_BTECH_GAME_PASSWORD: ${{ secrets.FOUR_BTECH_GAME_PASSWORD }}
@@ -126,6 +168,34 @@ jobs:
           r=0; bash scripts/press-start.sh out/start $serials >/dev/null 2>&1 || r=$?
           [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
           echo "Start: rc $r" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Save the phones for next time (private release "phones" of Bhautik-4B/Game-Auto)
+        if: env.SAVE == 'yes' && env.POOL_RC == '0'
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
+        run: |
+          sudo apt-get install -y -qq zstd >/dev/null
+          for n in $(seq 1 "$DEVICES"); do docker stop -t 30 "android$n" >/dev/null; done   # shut down cleanly
+          mkdir -p saved
+          for n in $(seq 1 "$DEVICES"); do
+            sudo tar --numeric-owner --xattrs -I 'zstd -T0 -6' -cf - -C "$HOME/phone$n-data" \
+              --exclude=./dalvik-cache --exclude=./cache --exclude=./system/dropbox --exclude=./tombstones --exclude=./anr . \
+              | split -b 1900M -d -a 2 - "saved/phone$n.tar.zst."
+            echo "Phone $n saved: $(du -ch saved/phone$n.tar.zst.* | tail -1 | cut -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          ist=$(TZ=Asia/Kolkata date '+%d %b %Y, %I:%M %p IST')
+          gh release view phones --repo Bhautik-4B/Game-Auto >/dev/null 2>&1 || \
+            gh release create phones --repo Bhautik-4B/Game-Auto --title "Saved phones" \
+              --notes "Saved Android phones (/data) for the workflow's restore mode. Private." >/dev/null
+          # old parts out first (a phone may now have fewer parts), then the new ones
+          for a in $(gh release view phones --repo Bhautik-4B/Game-Auto --json assets -q '.assets[].name' | grep -E "^phone[1-$DEVICES]\.tar\.zst\."); do
+            gh release delete-asset phones "$a" --repo Bhautik-4B/Game-Auto -y >/dev/null
+          done
+          gh release upload phones saved/* --repo Bhautik-4B/Game-Auto --clobber
+          gh release edit phones --repo Bhautik-4B/Game-Auto \
+            --notes "Saved Android phones (/data) for the workflow's restore mode. Private. Last saved: run #$GITHUB_RUN_NUMBER, $DEVICES phones, $ist." >/dev/null
+          rm -rf saved
+          echo "Phones saved (run #$GITHUB_RUN_NUMBER, $ist)" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Remove credentials from the results
         if: always()
