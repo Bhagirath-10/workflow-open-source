@@ -31,7 +31,11 @@ GUEST=$(comm -13 <(echo "$BEFORE") <(adb shell pm list packages -3 | tr -d '\r' 
 say "guest app: $GUEST"
 adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard
 # No on-screen keyboard: typing works without it and dialogs do not move under the taps.
-for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime" >/dev/null; done
+for ime in $(adb shell ime list -s | tr -d '\r'); do
+  adb shell ime disable "$ime" >/dev/null
+  adb shell pm disable-user --user 0 "${ime%%/*}" >/dev/null 2>&1   # the keyboard app itself
+done
+say "  keyboards left: $(adb shell ime list -s | tr -d '\r' | tr '\n' ' ')"
 open_app
 
 cmd clone --es pkg "$GUEST" --ei count 4
