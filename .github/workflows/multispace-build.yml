@@ -143,6 +143,7 @@ jobs:
         if: always()
         env:
           TOKEN: ${{ secrets[steps.token.outputs.name] }}
+          PRIVATE_REPO: ${{ env.MS_REPO }}  # the name save-results.sh reads
         run: bash private/scripts/ci/save-results.sh "$RUNNER_TEMP/out" build | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Fail on errors
