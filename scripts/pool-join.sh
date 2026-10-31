@@ -49,6 +49,12 @@ tap() {
 ocr() { a exec-out screencap -p > "$OUT/screen.png"; python3 -I "$HERE/ocr.py" "$OUT/screen.png" "$@" 2>/dev/null; }
 # locate <uiautomator regex> <OCR phrase(s)>: centre "x y" from the dump, else from the screenshot.
 locate() { dump && find text "$1" && return 0; ocr find "$2"; }
+# uiautomator (the dumps above) can switch other accessibility services off while it reads the
+# screen; 4bTech Game then says "Setup needed". Switch its screen permission back on.
+access_on() {
+  a shell settings put secure enabled_accessibility_services "$PKG/$PKG.BotService"
+  a shell settings put secure accessibility_enabled 1
+}
 screen_text() { dump && texts && return 0; ocr text | tr '\n' '|' | cut -c1-600; }
 # The pool code on the screen: a short word of capital letters and digits (with a digit),
 # or 4-8 digits; the nodes right after a "code" label first.
@@ -154,7 +160,10 @@ done
 # Every phone's pool screen at the end (the first phone should list the others).
 sleep 5
 for i in "${!PHONES[@]}"; do
-  S=${PHONES[$i]}; P=$((i + 1)); t=$(screen_text)
+  S=${PHONES[$i]}; P=$((i + 1)); access_on; sleep 3
+  a shell input swipe 540 1500 540 1150 300; sleep 2          # the "N phones in the pool" line
+  a exec-out screencap -p > "$OUT/screen.png"
+  t=$(python3 -I "$HERE/ocr.py" "$OUT/screen.png" text 2>/dev/null | tr '\n' '|')   # OCR only: no uiautomator now
   say "## phone $P at the end: $t"; shot 6-final
   # every phone should count all the phones: "3 phones in the pool"
   grep -Eq "${#PHONES[@]} (phones )?in the pool" <<< "$t" || { say "FAIL phone $P does not show ${#PHONES[@]} phones in the pool"; RC=1; }
