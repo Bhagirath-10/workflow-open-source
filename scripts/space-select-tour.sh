@@ -102,13 +102,17 @@ for n in ET.parse(sys.argv[1]).iter("node"):
 PY
 )
 if [ -n "$xy" ]; then
-  adb shell input tap $xy; sleep 3; shot import-password
+  adb shell input tap $xy; sleep 3
+  # With several files allowed, the picker may mark the file and wait for its "Select" button.
+  dump; [ "$(find top)" = "$APP" ] || tap "SELECT|Select|OPEN|Open"
+  shot import-password
   dump; xy=$(find edit 0) && { adb shell input tap $xy; sleep 1; adb shell input text "$PW"; }
   tap "Import"; shot import-running 1; sleep 8; shot import-done 0
 else
   say "  (no exported file in the picker)"; adb shell input keyevent KEYCODE_BACK; sleep 2
 fi
-# Long-press the first clone: the single menu with its new "Select" and "Export" rows.
+# Long-press the first clone: the small menu next to it.
+open_app
 dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 for n in ET.parse(sys.argv[1]).iter("node"):
