@@ -53,7 +53,7 @@ wait_log "import (OK|FAIL)" 120; WRONG=$(last_log 'import (OK|FAIL)'); say "  wr
 case "$WRONG" in *"FAIL Wrong password"*) say "PASS wrong password refused";; *) say "FAIL wrong password not refused"; RC=1;; esac
 cmd import --es pw "$PW"
 wait_log "import (OK|FAIL)" 120; IMP=$(last_log 'import (OK|FAIL)'); say "  $IMP"
-SPACE=$(echo "$IMP" | grep -oE 'space=[0-9]+' | cut -d= -f2)
+SPACE=$(echo "$IMP" | grep -oE 'spaces=[0-9]+' | cut -d= -f2)
 if [ -n "$SPACE" ]; then
   DN="blackbox/data/user/$SPACE/$GUEST"
   M=$(rs "cat $DN/files/marker.txt"); P=$(rs "cat $DN/shared_prefs/login.xml")
@@ -62,6 +62,16 @@ if [ -n "$SPACE" ]; then
 else
   say "FAIL import made no copy"; RC=1
 fi
+# Several copies in ONE file: copies 2 and 3 get their own markers, go out together, come back together.
+for sp in 1 2; do rs "mkdir -p blackbox/data/user/$sp/$GUEST/files && echo marker-$sp > blackbox/data/user/$sp/$GUEST/files/marker.txt"; done
+cmd export --es pkg "$GUEST" --es spaces "1,2" --es pw "$PW" --es file two.4bspace
+wait_log "export (OK|FAIL)" 120; say "  $(last_log 'export (OK|FAIL)')"
+cmd import --es pw "$PW" --es file two.4bspace
+wait_log "import (OK|FAIL)" 120; IMP2=$(last_log 'import (OK|FAIL)'); say "  $IMP2"
+S2=$(echo "$IMP2" | grep -oE 'spaces=[0-9,]+' | cut -d= -f2)
+GOT=""; for sp in ${S2//,/ }; do GOT+="$(rs "cat blackbox/data/user/$sp/$GUEST/files/marker.txt") "; done
+say "  imported copies $S2: $GOT"
+if echo "$IMP2" | grep -q "count=2" && [ "$GOT" = "marker-1 marker-2 " ]; then say "PASS two copies in one file came back with their own data"; else say "FAIL bundle import"; RC=1; fi
 cmd list; wait_log "list OK" 30; say "  $(last_log 'list OK')"
 
 # --- Multi-select screens ------------------------------------------------------------------
@@ -78,11 +88,11 @@ tap "Select all"
 tap "Export"; shot export-password
 for i in 0 1; do dump; xy=$(find edit $i) && { adb shell input tap $xy; sleep 1; adb shell input text "$PW"; }; done
 shot export-password-filled
-tap "Choose folder"; shot export-folder-picker 3
-# Android's folder picker: this folder, then allow; the export runs and says so.
-if tap "USE THIS FOLDER|Use this folder"; then
-  shot export-allow
-  tap "ALLOW|Allow"; shot export-running 1; sleep 8; shot export-done 0
+tap "Choose file"; shot export-save-picker 3
+# Android's save screen: Save; the export runs in a dialog in the middle and says when done.
+if tap "SAVE|Save"; then
+  shot export-running 0; sleep 8; shot export-done 0
+  tap "OK"
 else
   adb shell input keyevent KEYCODE_BACK; sleep 2
 fi
@@ -93,24 +103,38 @@ tap "Clear"; shot clear-confirm
 tap "Cancel"; sleep 1
 adb shell input keyevent KEYCODE_BACK; sleep 2; shot selection-left
 dump; xy=$(find text "Import") && { adb shell input tap $xy; shot import-picker 3; }
-# The exported files are the most recent ones: open the first, give the password, import.
-dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
+# The exported file is the most recent one: pick it (long-press marks it, Select confirms),
+# first with a wrong password (the big "Wrong password" answer), then with the right one.
+pick_export() {
+  local xy
+  dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 for n in ET.parse(sys.argv[1]).iter("node"):
     if n.get("text", "").endswith(".4bspace"):
         x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds"))); print((x1 + x2) // 2, (y1 + y2) // 2); break
 PY
 )
-if [ -n "$xy" ]; then
-  adb shell input tap $xy; sleep 3
-  # With several files allowed, the picker may mark the file and wait for its "Select" button.
+  [ -n "$xy" ] || return 1
+  adb shell input swipe $xy $xy 900; sleep 2
   dump; [ "$(find top)" = "$APP" ] || tap "SELECT|Select|OPEN|Open"
-  shot import-password
-  dump; xy=$(find edit 0) && { adb shell input tap $xy; sleep 1; adb shell input text "$PW"; }
-  tap "Import"; shot import-running 1; sleep 8; shot import-done 0
-else
-  say "  (no exported file in the picker)"; adb shell input keyevent KEYCODE_BACK; sleep 2
-fi
+  sleep 2; dump; [ "$(find top)" = "$APP" ]
+}
+for attempt in wrong right; do
+  dump; xy=$(find text "Import") && adb shell input tap $xy; sleep 3
+  [ $attempt = wrong ] && shot import-picker 0
+  if pick_export; then
+    [ $attempt = wrong ] && shot import-password 0
+    dump; xy=$(find edit 0) && { adb shell input tap $xy; sleep 1; adb shell input text "$([ $attempt = wrong ] && echo wrong-pass-123 || echo "$PW")"; }
+    tap "Import"; sleep 8; shot import-$attempt 0
+    tap "OK"
+  else
+    say "  (could not pick the exported file in the picker)"; adb shell input keyevent KEYCODE_BACK; sleep 2
+  fi
+done
+# Settings without Clone engine, Share app, Save log; the bin on the Hidden tab.
+adb shell am start -W -n $APP/.MainActivity --es route settings >/dev/null 2>&1; shot settings 3
+cmd remove --es pkg "$GUEST" --ei space 3; wait_log "remove OK" 20
+adb shell am force-stop $APP; adb shell am start -W -n $APP/.MainActivity --es route hidden >/dev/null 2>&1; shot hidden-bin 3
 # Long-press the first clone: the small menu next to it.
 open_app
 dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
