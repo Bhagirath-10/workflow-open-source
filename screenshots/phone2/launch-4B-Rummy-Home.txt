@@ -1,7 +1,0 @@
-Starting: Intent { cmp=app.gameauto.phone/.MainActivity }
-Status: ok
-LaunchState: COLD
-Activity: app.gameauto.phone/.AuthActivity
-TotalTime: 270
-WaitTime: 270
-Complete
