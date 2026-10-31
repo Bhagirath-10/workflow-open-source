@@ -52,9 +52,16 @@ for step in $(seq 1 25); do
   say "  screen $step [$top]: $(texts)"
   shot "setup-$step"
   if [ "$top" != "$PKG" ]; then
-    # Android's own screens. The screen-capture prompt needs "Start now"; anything else
-    # (Settings pages: those permissions are already on) is closed with Back.
-    tap_once "Start now|START NOW" "Start now (screen capture)" || tap_once "Allow|ALLOW|OK|Don't optimize|DON'T OPTIMIZE" || { say "  back"; adb shell input keyevent KEYCODE_BACK; sleep 2; }
+    # Android's own screens: the screen-capture prompt ("Start now"), the Accessibility page
+    # (4bTech Game › switch › Allow/OK), anything else is closed with Back.
+    tap_once "Start now|START NOW" "Start now (screen capture)" && continue
+    tap_once "Allow|ALLOW|OK|Don't optimize|DON'T OPTIMIZE" "confirm" && continue
+    if find text "DOWNLOADED SERVICES|Downloaded services|Downloaded apps" >/dev/null; then
+      tap_once "4bTech Game" "Accessibility: 4bTech Game" && continue
+    elif find text "4bTech Game" >/dev/null && ! find text "On|ON" >/dev/null; then
+      tap_once "Off|OFF|Use 4bTech Game|Use service" "Accessibility: switch 4bTech Game on" && continue
+    fi
+    say "  back"; adb shell input keyevent KEYCODE_BACK; sleep 2
     continue
   fi
   # The game list ("Which app is the game?") and the cloner list.
@@ -68,9 +75,13 @@ for step in $(seq 1 25); do
   break
 done
 
-adb shell input keyevent KEYCODE_BACK; sleep 2
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 4; dump
-say "  home: $(texts)"
-shot setup-result
-if find text "Setup needed" >/dev/null; then say "FAIL Setup still needed (see the setup screenshots)"; exit 1; fi
-say "PASS Setup done; Start not pressed"
+# The Setup screen itself says whether something is missing ("Give the last permission").
+dump; setup=$(texts)
+say "  accessibility services on: $(adb shell settings get secure enabled_accessibility_services | tr -d '\r')"
+shot setup-final
+adb shell input keyevent KEYCODE_BACK; sleep 3; shot home-after-setup
+case "$setup" in
+  *"Give the last permission"*|*"Not picked"*) say "FAIL Setup not finished: $setup"; exit 1;;
+  *Setup*) say "PASS Setup done (game RummyHome, cloner 4bTech Space); Start not pressed";;
+  *) say "FAIL could not read the Setup screen"; exit 1;;
+esac
