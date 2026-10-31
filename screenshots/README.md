@@ -1,26 +1,28 @@
 # Android 10 - install and screenshot
 
-Run [#13](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41114954452), 2026-10-30 19:32 UTC
+Run [#14](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41166360847), 2026-10-31 03:59 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{57573ab u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{90a0939 u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{167b09e u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{9aa43d7 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{1b4a90e u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{330efaa u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s88ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+24s982ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
   secrets: email 22 chars (22 trimmed), password 13 chars (13 trimmed)
   backend https://4brummyhome.synoventum.us.cc/api/v1/auth/login: HTTP 400 error=invalid_request, message=The request body or query is not valid. 
 PASS signed in (app.gameauto.phone/.MainActivity)
+## 4bTech Game: Setup (game Rummy Home, cloner 4bTech Space; Start is never pressed)
+FAIL no Setup button on the home screen
 ```
 
 ## 0-home
@@ -70,6 +72,10 @@ PASS signed in (app.gameauto.phone/.MainActivity)
 ## 3-4B-Rummy-Home-2-open
 
 <img src="3-4B-Rummy-Home-2-open.png" width="300">
+
+## 30-no-setup
+
+<img src="30-no-setup.png" width="300">
 
 ## 9-final
 
