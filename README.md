@@ -19,7 +19,8 @@ and fields on the screen from `uiautomator` dumps.
 
 `.github/workflows/android10-install.yml`: one job on an ARM runner, real arm64 Android 10
 (Redroid). It downloads the APKs, runs `full-cycle.sh` and publishes the results to
-`screenshots/` on the branch (page: `screenshots/README.md`) and as the artifact `screenshots`.
+the private repo `Bhautik-4B/Game-Auto`, branch `workflow-results`, folder `runs/<date>-run<N>/`
+(page: `README.md` in that folder). The public run log and summary show only pass/fail.
 It runs when the workflow or a script changes; on the default branch it can also be started by
 hand (Actions › Run workflow).
 
@@ -27,7 +28,7 @@ Repository secrets:
 
 | Secret | For |
 |---|---|
-| `PRIVATE_REPO` | token that can read the releases of `Bhautik-4B/Game-Auto` (4bTech Space and base.apk) |
+| `PRIVATE_REPO` | token for `Bhautik-4B/Game-Auto`: reads its releases (4bTech Space and base.apk) and stores the results there (Contents: Read and write) |
 | `FOUR_BTECH_GAME_EMAIL` / `FOUR_BTECH_GAME_PASSWORD` | the 4bTech Game account |
 
 The secrets are never printed and are replaced by `***` in every published file; no screenshot is

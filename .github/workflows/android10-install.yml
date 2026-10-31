@@ -4,8 +4,9 @@ name: Android 10 - install APKs and screenshot
 # 4bTech Space, the game (base.apk) and 4B-Rummy-Home, opens each one and takes screenshots.
 # Then gives 4bTech Game its permissions and signs it in (scripts/bot-setup.sh), and finishes its
 # Setup: game Rummy Home, cloner 4bTech Space, Start never pressed (scripts/bot-configure.sh).
-# Screenshots, the install log and the package list are uploaded as the artifact "screenshots"
-# and committed to this branch under screenshots/ with a page (screenshots/README.md) showing them.
+# Results (screenshots, notes, pool code) are stored only in the private repo Bhautik-4B/Game-Auto,
+# branch workflow-results, folder runs/<date>-run<N>/ with a README.md page; the public run log and
+# summary show only pass/fail.
 #
 # Secret PRIVATE_REPO (or GAME_AUTO_TOKEN): a token that can read the releases of the private repo
 # Bhautik-4B/Game-Auto (fine-grained, Contents: Read).
@@ -31,7 +32,7 @@ on:
       - scripts/**
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   SPACE_URL: https://github.com/Bhautik-4B/Game-Auto/releases/download/APK/4bTech-Space.apk
@@ -100,21 +101,21 @@ jobs:
           # one phone after another (all at once is too slow on the runner's 4 CPUs: taps get missed),
           # each with its own adb serial and results folder; all phones stay on the same network
           for n in $(seq 1 "$DEVICES"); do
-            r=0; ANDROID_SERIAL="localhost:600$n" bash scripts/full-cycle.sh apk "out/phone$n" || r=$?
+            r=0; ANDROID_SERIAL="localhost:600$n" bash scripts/full-cycle.sh apk "out/phone$n" >/dev/null 2>&1 || r=$?
             echo "$r" > "out/phone$n/rc"
           done
           RC=0
           for n in $(seq 1 "$DEVICES"); do
             r=$(cat "out/phone$n/rc" 2>/dev/null || echo 1); [ "$r" = 0 ] || RC=$r
-            { echo "### Phone $n (rc $r)"; echo '```'; cat "out/phone$n/notes.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            echo "Phone $n: rc $r, $(grep -cE '^PASS' "out/phone$n/notes.txt" 2>/dev/null) PASS, $(grep -cE '^FAIL' "out/phone$n/notes.txt" 2>/dev/null) FAIL" | tee -a "$GITHUB_STEP_SUMMARY"
           done
           echo "RC=$RC" >> "$GITHUB_ENV"
 
       - name: Pool - every phone selects Pool, phone 1 shows the code, the others enter it (scripts/pool-join.sh)
         run: |
           serials=""; for n in $(seq 1 "$DEVICES"); do serials="$serials localhost:600$n"; done
-          r=0; bash scripts/pool-join.sh out/pool $serials || r=$?
-          { echo "### Pool (rc $r)"; echo '```'; cat out/pool/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          r=0; bash scripts/pool-join.sh out/pool $serials >/dev/null 2>&1 || r=$?
+          echo "Pool: rc $r" | tee -a "$GITHUB_STEP_SUMMARY"
           [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
           echo "POOL_RC=$r" >> "$GITHUB_ENV"
 
@@ -122,8 +123,9 @@ jobs:
         if: env.POOL_RC == '0'
         run: |
           serials=""; for n in $(seq 1 "$DEVICES"); do serials="$serials localhost:600$n"; done
-          bash scripts/press-start.sh out/start $serials || echo "RC=1" >> "$GITHUB_ENV"
-          { echo "### Start"; echo '```'; cat out/start/notes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          r=0; bash scripts/press-start.sh out/start $serials >/dev/null 2>&1 || r=$?
+          [ "$r" = 0 ] || echo "RC=$r" >> "$GITHUB_ENV"
+          echo "Start: rc $r" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Remove credentials from the results
         if: always()
@@ -145,35 +147,42 @@ jobs:
           PY
           rm -f out/ui.xml out/phone*/ui.xml out/pool/ui.xml out/start/ui.xml
 
-      - name: Upload screenshots
+      # Results (screenshots, notes, pool code) are stored only in the private repo
+      # Bhautik-4B/Game-Auto, branch workflow-results, folder runs/<date>-run<N>/ (this repo is public).
+      # Needs the PRIVATE_REPO token to have Contents: Read and write on Bhautik-4B/Game-Auto.
+      - name: Store results in the private repo (Bhautik-4B/Game-Auto, branch workflow-results)
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots
-          path: out
-          retention-days: 7
-
-      - name: Publish screenshots page on this branch
-        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
         run: |
-          git clone -q --depth 1 --branch "$GITHUB_REF_NAME" \
-            "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY.git" site
-          rm -rf site/screenshots; mkdir -p site/screenshots; cp -r out/. site/screenshots/
+          url="https://x-access-token:$GH_TOKEN@github.com/Bhautik-4B/Game-Auto.git"
+          if ! git clone -q --depth 1 --branch workflow-results "$url" priv 2>/dev/null; then
+            git init -q priv; git -C priv checkout -q -b workflow-results; git -C priv remote add origin "$url"
+          fi
+          ist=$(TZ=Asia/Kolkata date '+%d %b %Y, %I:%M %p IST')
+          dest="runs/$(TZ=Asia/Kolkata date '+%Y-%m-%d_%I-%M-%p')-run$GITHUB_RUN_NUMBER"
+          mkdir -p "priv/$dest"; cp -r out/. "priv/$dest/"
           {
-            echo "# Android 10 - install and screenshot"
+            echo "# Run #$GITHUB_RUN_NUMBER - $DEVICES phones on one Wi-Fi"
             echo
-            echo "Run [#$GITHUB_RUN_NUMBER]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID), $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo "$ist - $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
             echo '```'; cat out/network.txt 2>/dev/null; echo '```'
             for d in $(cd out && ls -d phone* pool start 2>/dev/null); do
               echo; echo "# $d"; echo; echo '```'; cat "out/$d/notes.txt" 2>/dev/null; echo '```'
               for f in $(cd "out/$d" && ls *.png 2>/dev/null); do echo; echo "## $d - ${f%.png}"; echo; echo "<img src=\"$d/$f\" width=\"300\">"; done
             done
-          } > site/screenshots/README.md
-          cd site
+          } > "priv/$dest/README.md"
+          cd priv
           git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
-          git add screenshots
-          git commit -q -m "Screenshots from run #$GITHUB_RUN_NUMBER (Android 10)" && git push -q origin "HEAD:$GITHUB_REF_NAME" || echo "nothing to publish"
+          git add runs
+          git commit -q -m "Run #$GITHUB_RUN_NUMBER ($DEVICES phones), $ist"
+          if git push -q origin HEAD:workflow-results 2>/dev/null; then
+            echo "Results stored in Bhautik-4B/Game-Auto, branch workflow-results, $dest" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Could not store the results: the PRIVATE_REPO token needs Contents: Read and write on Bhautik-4B/Game-Auto"
+            echo "RC=1" >> "$GITHUB_ENV"
+          fi
 
       - name: Fail if a step failed
         if: env.RC != '0'
