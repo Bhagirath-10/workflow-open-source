@@ -1,20 +1,20 @@
 # Android 10 - install and screenshot
 
-Run [#15](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41166739308), 2026-10-31 04:07 UTC
+Run [#16](https://github.com/Bhagirath-10/workflow-open-source/actions/runs/41167353519), 2026-10-31 04:15 UTC
 
 ```
 PASS install 4bTech-Space.apk (com.fourbtech.space)
   version 1.1.4
-  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{9adc69c u0 com.fourbtech.space/.MainActivity t6}
+  launch com.fourbtech.space/.MainActivity -> on screen: mResumedActivity: ActivityRecord{16b83ce u0 com.fourbtech.space/.MainActivity t6}
 PASS install base.apk (BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP)
   version 1.0
-  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{700d359 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
+  launch BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity -> on screen: mResumedActivity: ActivityRecord{55233e2 u0 BnrOdaB.HmkEhkT.AqlWygK.SrmOtnP/.AppActivity t7}
 PASS install 4B-Rummy-Home.apk (app.gameauto.phone)
   version 2.1.9-qa
-  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{c120a9f u0 com.android.packageinstaller/.PackageInstallerActivity t9}
+  launch app.gameauto.phone/.MainActivity -> on screen: mResumedActivity: ActivityRecord{464e4fa u0 com.android.packageinstaller/.PackageInstallerActivity t9}
 ## 4bTech Game: permissions and sign-in
 PASS accessibility service on: app.gameauto.phone/app.gameauto.phone.BotService
-  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+25s337ms ago 
+  appops: SYSTEM_ALERT_WINDOW: allow PROJECT_MEDIA: allow REQUEST_INSTALL_PACKAGES: allow; rejectTime=+26s151ms ago 
   battery optimisation off: 1 entry
 PASS app updated itself: 2.1.9-qa -> 2.1.13
   app version 2.1.13
@@ -32,15 +32,23 @@ PASS signed in (app.gameauto.phone/.MainActivity)
   screen 4 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your ph
   tap: Allow|Allow the settings|Grant|Turn on|Switch on|Enable|Open settings|Continue|Next|OK|Got it|GOT IT
   screen 5 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | Off | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Large mouse pointer | Remove animations | INTERACTION CONTROLS
+  tap: Accessibility: 4bTech Game
+  screen 6 [com.android.settings]: Navigate up | 4bTech Game | Use service | OFF | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
+  tap: Accessibility: switch 4bTech Game on
+  screen 7 [com.android.settings]: Allow 4bTech Game to have full control of your device? | Full control is appropriate for apps that help you with accessibility needs, but not for most apps. | View and control screen | It can read all content on the screen and display content over other apps. | View and perform actions | It can track your interactions with an app or a hardware sensor, and interact with apps on your behalf. | ALLOW | DENY
+  tap: confirm
+  screen 8 [com.android.settings]: Navigate up | 4bTech Game | Use service | ON | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
   back
-  screen 6 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your ph
-  tap: Allow|Allow the settings|Grant|Turn on|Switch on|Enable|Open settings|Continue|Next|OK|Got it|GOT IT
-  screen 7 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | Off | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Large mouse pointer | Remove animations | INTERACTION CONTROLS
+  screen 9 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | On | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Off | Large mouse pointer | Remove animations | INTERACTION CONTROLS
+  tap: Accessibility: 4bTech Game
+  screen 10 [com.android.settings]: Navigate up | 4bTech Game | Use service | ON | Plays the chosen game on this phone for 4bTech Game: takes screenshots, reads them and taps, the same steps the emulator workflow takes.
   back
-  screen 8 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | Give the last permission | 1. Screen permission | Lets the app see the game and tap for you. Find 4bTech Game in the list and switch it on. Greyed out? Open App info › ⋮ › Allow restricted settings. | Turn on | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your ph
+  screen 11 [com.android.settings]: Navigate up | Accessibility | Search settings | Volume key shortcut | No service selected | DOWNLOADED SERVICES | 4bTech Game | On | SCREEN READERS | Text-to-speech output | DISPLAY | Font size | Default | Display size | Dark theme | OFF | Magnification | Off | Large mouse pointer | Remove animations | INTERACTION CONTROLS
+  back
+  screen 12 [app.gameauto.phone]: Setup | Once only. Tap each button and come back here; a green tick means it is done and stays done. | 1. Screen permission | Allowed. The app can see the game and tap for you. | 2. Game | RummyHome | Change | 3. Clone app | 4bTech Space. It keeps the game's accounts, each one separate. Tap Change to use another cloner. | 4. Keep running | Allowed. Android keeps the app running. | 5. Block ads (optional) | Stops most ads in the clone app. One setting in your phone, no extra app needed. | Set up | Clones already in the cloner app are used as they are. When there is none, the app adds them itsel
   nothing left to tap on this screen
-  home: 
-PASS Setup done; Start not pressed
+  accessibility services on: app.gameauto.phone/app.gameauto.phone.BotService
+PASS Setup done (game RummyHome, cloner 4bTech Space); Start not pressed
 ```
 
 ## 0-home
@@ -123,9 +131,29 @@ PASS Setup done; Start not pressed
 
 <img src="37-setup-8.png" width="300">
 
-## 38-setup-result
+## 38-setup-9
 
-<img src="38-setup-result.png" width="300">
+<img src="38-setup-9.png" width="300">
+
+## 39-setup-10
+
+<img src="39-setup-10.png" width="300">
+
+## 40-setup-11
+
+<img src="40-setup-11.png" width="300">
+
+## 41-setup-12
+
+<img src="41-setup-12.png" width="300">
+
+## 42-setup-final
+
+<img src="42-setup-final.png" width="300">
+
+## 43-home-after-setup
+
+<img src="43-home-after-setup.png" width="300">
 
 ## 9-final
 
