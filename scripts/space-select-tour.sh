@@ -91,6 +91,14 @@ cmd delete --es pkg "$GUEST" --ei space 3; wait_log "delete (OK|FAIL)" 60
 [ -n "$SS" ] && { cmd delete --es pkg "$GUEST" --ei space "$SS"; wait_log "delete (OK|FAIL)" 60; }
 cmd list; wait_log "list OK" 30; say "  $(last_log 'list OK')"
 
+# The updater's check of a downloaded APK: this app's own APK must pass, another app's must not.
+adb push "$APP_APK" /data/local/tmp/self.apk >/dev/null; adb push "$GUEST_APK" /data/local/tmp/other.apk >/dev/null
+rs "cp /data/local/tmp/self.apk files/self.apk && cp /data/local/tmp/other.apk files/other.apk"
+CODE=$(adb shell dumpsys package $APP | tr -d '\r' | grep -m1 versionCode | grep -oE 'versionCode=[0-9]+' | cut -d= -f2)
+cmd verifyapk --es file self.apk --ei code "$CODE"; wait_log "verifyapk (OK|FAIL)" 30; V1=$(last_log 'verifyapk (OK|FAIL)'); say "  $V1"
+cmd verifyapk --es file other.apk --ei code "$CODE"; wait_log "verifyapk (OK|FAIL)" 30; V2=$(last_log 'verifyapk (OK|FAIL)'); say "  $V2"
+case "$V1|$V2" in "verifyapk OK self.apk|verifyapk FAIL other.apk"*) say "PASS update check: own APK accepted, another app refused";; *) say "FAIL update check"; RC=1;; esac
+
 # --- Multi-select screens ------------------------------------------------------------------
 open_app; shot home 3
 dump; xy=$(find text "Select") && { adb shell input tap $xy; } ; shot select-one

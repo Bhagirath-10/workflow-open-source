@@ -15,7 +15,7 @@ on:
       version:
         description: "New version, e.g. 1.1.6"
         required: true
-        default: "1.1.6"
+        default: "1.1.7"
       old:
         description: "Published version to update from"
         required: true
@@ -32,7 +32,7 @@ env:
   MS_REPO: 4BornGithub/4b-multi-space
   # A push runs it with these (there are no inputs then).
   REF: ${{ inputs.ref || 'feature/export-import-v2' }}
-  NEW_VERSION: ${{ inputs.version || '1.1.6' }}
+  NEW_VERSION: ${{ inputs.version || '1.1.7' }}
   OLD_VERSION: ${{ inputs.old || '1.1.5' }}
 
 jobs:
