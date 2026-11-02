@@ -83,6 +83,10 @@ wait_log "import (OK|FAIL)" 240; SI=$(last_log 'import (OK|FAIL)'); say "  $SI"
 SS=$(echo "$SI" | grep -oE 'spaces=[0-9]+' | cut -d= -f2)
 say "  imported copy: $(rs "find blackbox/data/user/$SS/$GUEST -type f | wc -l") files, $(rs "du -sk blackbox/data/user/$SS/$GUEST" | cut -f1) kB"
 say "SPEED 50 MB: export $(echo "$SE" | grep -oE 'ms=[0-9]+' | cut -d= -f2) ms, import $(echo "$SI" | grep -oE 'ms=[0-9]+' | cut -d= -f2) ms"
+NF=$(rs "find blackbox/data/user/${SS:-none}/$GUEST -type f | wc -l")
+SUM_A=$(rs "cd blackbox/data/user/3/$GUEST/files/client && cat a/r1.bin a/r750.bin b/t1.json big20.pak | md5sum")
+SUM_B=$(rs "cd blackbox/data/user/${SS:-none}/$GUEST/files/client && cat a/r1.bin a/r750.bin b/t1.json big20.pak | md5sum")
+if echo "$SI" | grep -q "import OK" && [ "$NF" -ge 1520 ] && [ "$SUM_A" = "$SUM_B" ]; then say "PASS 50 MB export -> import: all $NF files, contents identical"; else say "FAIL 50 MB import (files=$NF)"; RC=1; fi
 cmd delete --es pkg "$GUEST" --ei space 3; wait_log "delete (OK|FAIL)" 60
 [ -n "$SS" ] && { cmd delete --es pkg "$GUEST" --ei space "$SS"; wait_log "delete (OK|FAIL)" 60; }
 cmd list; wait_log "list OK" 30; say "  $(last_log 'list OK')"
