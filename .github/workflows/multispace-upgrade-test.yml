@@ -20,12 +20,20 @@ on:
         description: "Published version to update from"
         required: true
         default: "1.1.5"
+  push:
+    paths:
+      - .github/workflows/multispace-upgrade-test.yml
+      - scripts/space-upgrade-test.sh
 
 permissions:
   contents: read
 
 env:
   MS_REPO: 4BornGithub/4b-multi-space
+  # A push runs it with these (there are no inputs then).
+  REF: ${{ inputs.ref || 'feature/export-import-v2' }}
+  NEW_VERSION: ${{ inputs.version || '1.1.6' }}
+  OLD_VERSION: ${{ inputs.old || '1.1.5' }}
 
 jobs:
   build:
@@ -48,7 +56,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.MS_REPO }}
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.REF }}
           token: ${{ secrets[steps.token.outputs.name] }}
           path: private
       - uses: actions/setup-java@v4
@@ -63,14 +71,14 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.13846066" >/dev/null
-          V="${{ inputs.version }}"; IFS=. read -r A B C <<< "$V"; CODE=$((A * 10000 + B * 100 + C))
+          V="$NEW_VERSION"; IFS=. read -r A B C <<< "$V"; CODE=$((A * 10000 + B * 100 + C))
           gradle --no-daemon --console=plain -PversionCode=$CODE -PversionName=$V :app:assembleRelease :testing:guest-app:assembleDebug >"$RUNNER_TEMP/build_log.txt" 2>&1 \
             || { grep -E "^e: |error:|What went wrong" -A3 "$RUNNER_TEMP/build_log.txt" | head -60; exit 1; }
           mkdir -p "$RUNNER_TEMP/x"
           cp app/build/outputs/apk/release/*universal*.apk "$RUNNER_TEMP/x/new.apk"
           cp testing/guest-app/build/outputs/apk/debug/guest-app-debug.apk "$RUNNER_TEMP/x/guest.apk"
           cp scripts/ci/save-results.sh "$RUNNER_TEMP/x/"
-          echo "Built $V (code $CODE) from ${{ inputs.ref }} ($(git rev-parse --short HEAD))" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Built $V (code $CODE) from $REF ($(git rev-parse --short HEAD))" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: upgrade-test-files
@@ -90,7 +98,7 @@ jobs:
           name: upgrade-test-files
           path: x
       - name: Published version
-        run: curl -fsSL -o x/old.apk "https://github.com/Bhautik-4B/Action-Auto/releases/download/space-v${{ inputs.old }}/4bTech-Space-${{ inputs.old }}.apk" && ls -l x
+        run: curl -fsSL -o x/old.apk "https://github.com/Bhautik-4B/Action-Auto/releases/download/space-v$OLD_VERSION/4bTech-Space-$OLD_VERSION.apk" && ls -l x
       - name: Start Android 11 (Redroid, arm64)
         run: |
           sudo apt-get update -qq >/dev/null
@@ -105,7 +113,7 @@ jobs:
       - name: Update test
         run: |
           RC=0; bash scripts/space-upgrade-test.sh x/old.apk x/new.apk x/guest.apk "$RUNNER_TEMP/out/upgrade-test" || RC=$?
-          { echo "### Update ${{ inputs.old }} -> ${{ inputs.version }}"; echo '```'; cat "$RUNNER_TEMP/out/upgrade-test/notes.txt"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Update $OLD_VERSION -> $NEW_VERSION"; echo '```'; cat "$RUNNER_TEMP/out/upgrade-test/notes.txt"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           echo "RC=$RC" >> "$GITHUB_ENV"
       - name: Save results to the private repo (branch "results")
         if: always()
