@@ -37,6 +37,10 @@ adb shell dumpsys package "$PKG" | tr -d '\r' > "$OUT/package.txt"
 
 adb logcat -c
 launch
+# The first thing the app shows (also when it closes right away), with what Android logged.
+adb exec-out screencap -p > "$OUT/000-first-launch.png"
+say "first launch: on screen $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')"
+adb logcat -d 2>/dev/null | grep -iE "$PKG|libflutter|libapp|pairip|license|UnsatisfiedLink|FATAL" | head -60 > "$OUT/first-launch-log.txt"
 end=$(( $(date +%s) + MIN * 60 )); step=0; shots=0; backs=0
 declare -A seen
 while [ "$(date +%s)" -lt "$end" ]; do
@@ -84,6 +88,6 @@ while [ "$(date +%s)" -lt "$end" ]; do
     [ "$backs" -ge 4 ] && { say "step $step: back to the start"; adb shell am force-stop "$PKG"; launch; backs=0; }
   fi
 done
-adb logcat -d 2>/dev/null | grep -E "FATAL EXCEPTION|AndroidRuntime|ANR in" -A 8 | head -200 > "$OUT/crashes.txt"
+adb logcat -d 2>/dev/null | grep -E "FATAL EXCEPTION|AndroidRuntime|ANR in|UnsatisfiedLinkError|libflutter|libapp" -A 8 | head -300 > "$OUT/crashes.txt"
 say "## done: $step steps, ${#seen[@]} different screens, $shots screenshots"
 rm -f "$OUT/ui.xml" "$OUT/screen.png"; rm -rf "$OUT/tried"
