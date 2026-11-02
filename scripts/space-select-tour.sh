@@ -149,6 +149,29 @@ for attempt in wrong right; do
   fi
 done
 # Settings without Clone engine, Share app, Save log; the bin on the Hidden tab.
+# A note on the first clone (long-press > Add note), then that clone exported and imported:
+# the new copy must have the same name and note.
+open_app
+dump; xy=$(python3 -I - "$OUT/ui.xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+for n in ET.parse(sys.argv[1]).iter("node"):
+    if re.fullmatch(r"Copy 1", n.get("text", "")):
+        x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds"))); print((x1 + x2) // 2, y1 - 60); break
+PY
+)
+if [ -n "$xy" ]; then
+  adb shell input swipe $xy $xy 900; sleep 2; shot menu-add-note 0
+  tap "Add note"
+  dump; xy2=$(find edit 0) && { adb shell input tap $xy2; sleep 1; adb shell input text "Main%saccount%s-%slevel%s12"; }
+  shot note-dialog 1
+  tap "Save"; sleep 2; shot home-with-note 1
+  cmd list; wait_log "list OK" 30
+  N0=$(adb logcat -d -s MultiSpaceE2E:V | grep "list OK" | tail -1 | grep -oE "$GUEST@VIRTUAL:[0-9]+" | head -1 | cut -d: -f2)
+  cmd export --es pkg "$GUEST" --ei space "${N0:-0}" --es pw "$PW" --es file note.4bspace; wait_log "export (OK|FAIL)" 120
+  cmd importui --es pw "$PW" --es file note.4bspace; sleep 8; shot import-name-note 0
+  tap "OK"; sleep 2
+  adb shell input swipe 540 1700 540 600 400; sleep 2; shot home-imported-note 1
+fi
 # The Import result dialogs, as a user sees them: a wrong password, then the right one.
 open_app
 cmd importui --es pw "wrong-pass-123" --es file two.4bspace; sleep 6; shot import-wrong-password 0
