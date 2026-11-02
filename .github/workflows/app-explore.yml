@@ -158,7 +158,7 @@ jobs:
             echo "$p install ($(echo $apks | wc -w) file(s): $(for a in $apks; do basename $a; done | tr '\n' ' ')): $(echo "$r" | tail -2 | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"
             if [ -d "$work/Android/obb" ]; then adb push "$work/Android/obb/." /sdcard/Android/obb/ >/dev/null 2>&1; fi
             adb shell pm list packages | grep -q "package:$p$" || continue
-            bash explore/explore.sh "$p" "out/$p" "$MINUTES" || true
+            timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
             tail -1 "out/$p/notes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
             adb shell am force-stop "$p"
           done

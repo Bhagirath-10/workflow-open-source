@@ -15,15 +15,15 @@ dump() {
   local i
   for i in 1 2 3; do
     adb shell rm -f /sdcard/ui.xml
-    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
-    adb shell cat /sdcard/ui.xml 2>/dev/null | tr -d '\r' > "$OUT/ui.xml"
+    timeout 25 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    timeout 10 adb shell cat /sdcard/ui.xml 2>/dev/null | tr -d '\r' > "$OUT/ui.xml"
     grep -q '<hierarchy' "$OUT/ui.xml" && return 0
     sleep 1
   done
   return 1
 }
-ocr_text() { adb exec-out screencap -p > "$OUT/screen.png"; tesseract "$OUT/screen.png" - --psm 11 2>/dev/null | tr -s '\n' '|' | cut -c1-800; }
-launch() { adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6; }
+ocr_text() { timeout 15 adb exec-out screencap -p > "$OUT/screen.png"; tesseract "$OUT/screen.png" - --psm 11 2>/dev/null | tr -s '\n' '|' | cut -c1-800; }
+launch() { timeout 30 adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6; }
 
 # What the app is, from Android itself.
 adb shell dumpsys package "$PKG" | tr -d '\r' > "$OUT/package.txt"
@@ -39,13 +39,13 @@ adb shell dumpsys package "$PKG" | tr -d '\r' > "$OUT/package.txt"
 adb logcat -c
 act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
 say "first launch: activity $act"
-adb shell am start -W -n "$act" 2>&1 | tr -d '\r' | sed 's/^/  am start: /' >> "$NOTES"
+timeout 30 adb shell am start -W -n "$act" 2>&1 | tr -d '\r' | sed 's/^/  am start: /' >> "$NOTES"
 for t in 1 3 6 10; do
   sleep $t
-  adb exec-out screencap -p > "$OUT/000-first-launch-${t}s.png"
-  say "  after ${t}s: process $(adb shell pidof "$PKG" | tr -d '\r' | grep . || echo 'not running'), on screen: $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-z0-9_.]+/[^ }]+')"
+  timeout 15 adb exec-out screencap -p > "$OUT/000-first-launch-${t}s.png"
+  say "  after ${t}s: process $(adb shell pidof "$PKG" | tr -d '\r' | grep . || echo 'not running'), on screen: $(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-z0-9_.]+/[^ }]+')"
 done
-adb logcat -d -v threadtime 2>/dev/null | grep -vE " (Monkey|AndroidRuntime|app_process|uiautomator)\b" > "$OUT/first-launch-log.txt"
+timeout 30 adb logcat -d -v threadtime 2>/dev/null | grep -vE " (Monkey|AndroidRuntime|app_process|uiautomator)\b" > "$OUT/first-launch-log.txt"
 grep -E "FATAL EXCEPTION|Process: $PKG|Caused by|UnsatisfiedLinkError|dlopen|couldn't find|libflutter|libapp|pairip|LicenseActivity|Force finishing|has died|Killing .*$PKG|ActivityManager: Start proc .*$PKG" "$OUT/first-launch-log.txt" | head -40 | sed 's/^/  log: /' >> "$NOTES"
 end=$(( $(date +%s) + MIN * 60 )); step=0; shots=0; backs=0
 declare -A seen
@@ -76,7 +76,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
   sig=$(ui sig)
   if [ -z "${seen[$sig]:-}" ]; then
     seen[$sig]=1; shots=$((shots + 1))
-    act=$(adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE "$PKG/[^ }]+" )
+    act=$(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE "$PKG/[^ }]+" )
     name="$(printf %03d $shots)-screen-$sig"
     adb exec-out screencap -p > "$OUT/$name.png"
     say "step $step: NEW SCREEN $name ($act)"
@@ -97,6 +97,6 @@ while [ "$(date +%s)" -lt "$end" ]; do
     [ "$backs" -ge 4 ] && { say "step $step: back to the start"; adb shell am force-stop "$PKG"; launch; backs=0; }
   fi
 done
-adb logcat -d 2>/dev/null | grep -E "FATAL EXCEPTION|AndroidRuntime|ANR in|UnsatisfiedLinkError|libflutter|libapp" -A 8 | head -300 > "$OUT/crashes.txt"
+timeout 30 adb logcat -d 2>/dev/null | grep -E "FATAL EXCEPTION|AndroidRuntime|ANR in|UnsatisfiedLinkError|libflutter|libapp" -A 8 | head -300 > "$OUT/crashes.txt"
 say "## done: $step steps, ${#seen[@]} different screens, $shots screenshots"
 rm -f "$OUT/ui.xml" "$OUT/screen.png"; rm -rf "$OUT/tried"
