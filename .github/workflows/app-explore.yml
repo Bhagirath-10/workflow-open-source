@@ -93,7 +93,7 @@ jobs:
             gh release download explore-apks --repo Bhautik-4B/Game-Auto --pattern "$p.*" --dir "apks/$p" >>"$log" 2>&1 && echo "private release explore-apks: ok" >> "$log" || echo "private release explore-apks: none" >> "$log"
             # 2. apkeep (APKPure API)
             if ! got "$p" && [ -x ./apkeep ]; then
-              timeout 300 ./apkeep -a "$p" "apks/$p" >>"$log" 2>&1; echo "apkeep exit $?" >> "$log"
+              timeout 300 ./apkeep -d apk-pure -a "$p" "apks/$p" </dev/null >>"$log" 2>&1; echo "apkeep exit $?" >> "$log"
             fi
             # 3. APKPure download links
             for kind in XAPK APK; do
