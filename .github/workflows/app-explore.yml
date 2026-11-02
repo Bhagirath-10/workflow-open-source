@@ -42,7 +42,11 @@ jobs:
         run: |
           sudo apt-get update -qq >/dev/null
           sudo apt-get install -y -qq adb unzip tesseract-ocr "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb unzip tesseract-ocr >/dev/null
-          curl -fsSL -o apkeep https://github.com/EFForg/apkeep/releases/latest/download/apkeep-aarch64-unknown-linux-gnu && chmod +x apkeep || echo "apkeep not available"
+          # apkeep: the release's file for this CPU (names listed, so a wrong guess is visible)
+          url=$(curl -fsSL https://api.github.com/repos/EFForg/apkeep/releases/latest | grep -oE '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | tee apkeep-assets.txt | grep -iE 'aarch64.*linux' | grep -viE 'musl|\.(sha|sig)' | head -1)
+          echo "apkeep: ${url:-not found} (assets: $(tr '\n' ' ' < apkeep-assets.txt))"
+          [ -n "$url" ] && curl -fsSL -o apkeep "$url" && chmod +x apkeep || echo "apkeep not available"
+          sudo apt-get install -y -qq gh >/dev/null 2>&1 || true
 
       - name: Play Store pages
         run: |
@@ -72,17 +76,40 @@ jobs:
             head -3 "out/$p/play.txt"
           done
 
+      # Sources tried in order, each one's answer logged: apkeep (APKPure's app API), APKPure's
+      # download links, APKCombo. An APK can also be given in the private repo: release
+      # "explore-apks" of Bhautik-4B/Game-Auto, files named <package>.apk / .xapk / .apks.
       - name: Download the apps
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
         run: |
+          set +e   # a source that fails is logged, then the next one is tried
           mkdir -p apks
+          UA="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
+          got() { ls "apks/$1"/* >/dev/null 2>&1 && [ "$(du -cb apks/$1/* | tail -1 | cut -f1)" -gt 100000 ]; }
           for p in $PACKAGES; do
-            mkdir -p "apks/$p"
-            [ -x ./apkeep ] && ./apkeep -a "$p" "apks/$p" >/dev/null 2>&1 || true
-            if ! ls apks/$p/* >/dev/null 2>&1; then
-              curl -fsSL -A "Mozilla/5.0" -o "apks/$p/$p.xapk" "https://d.apkpure.com/b/XAPK/$p?version=latest" || \
-              curl -fsSL -A "Mozilla/5.0" -o "apks/$p/$p.apk" "https://d.apkpure.com/b/APK/$p?version=latest" || true
+            mkdir -p "apks/$p"; log="out/$p/download.txt"; : > "$log"
+            # 1. given by hand in the private repo
+            gh release download explore-apks --repo Bhautik-4B/Game-Auto --pattern "$p.*" --dir "apks/$p" >>"$log" 2>&1 && echo "private release explore-apks: ok" >> "$log" || echo "private release explore-apks: none" >> "$log"
+            # 2. apkeep (APKPure API)
+            if ! got "$p" && [ -x ./apkeep ]; then
+              timeout 300 ./apkeep -a "$p" "apks/$p" >>"$log" 2>&1; echo "apkeep exit $?" >> "$log"
             fi
-            echo "$p: $(ls -l apks/$p 2>/dev/null | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY"
+            # 3. APKPure download links
+            for kind in XAPK APK; do
+              got "$p" && break
+              code=$(curl -sL -A "$UA" -o "apks/$p/$p.$(echo $kind | tr A-Z a-z)" -w '%{http_code} %{content_type} %{size_download}' "https://d.apkpure.com/b/$kind/$p?version=latest")
+              echo "apkpure $kind: $code" >> "$log"
+              got "$p" || rm -f "apks/$p/$p.$(echo $kind | tr A-Z a-z)"
+            done
+            # 4. APKCombo: its page names a download link
+            if ! got "$p"; then
+              page=$(curl -sL -A "$UA" "https://apkcombo.com/a/$p/download/apk" || true)
+              link=$(echo "$page" | grep -oE 'https://[^"]*(apkcombo|pureapk)[^"]*\.(apk|xapk)[^"]*' | head -1 | sed 's/&amp;/\&/g')
+              echo "apkcombo page: ${#page} bytes, link: ${link:-none}" >> "$log"
+              if [ -n "$link" ]; then f="apks/$p/$p.$(echo "$link" | grep -oE 'xapk|apk' | head -1)"; curl -sL -A "$UA" -o "$f" "$link"; got "$p" || rm -f "$f"; fi
+            fi
+            echo "$p: $(ls -l apks/$p 2>/dev/null | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "$log"
           done
 
       - name: Start Android 13 (Redroid, arm64)
@@ -105,14 +132,15 @@ jobs:
           for p in $PACKAGES; do
             d="apks/$p"; work="$RUNNER_TEMP/x-$p"; mkdir -p "$work"
             for f in "$d"/*; do
+              [ -e "$f" ] || continue
               case "$f" in
                 *.xapk|*.apks|*.zip) unzip -q -o "$f" -d "$work" ;;
                 *.apk) cp "$f" "$work/" ;;
               esac
             done
             # splits: everything except other CPUs' and other screen densities' parts
-            apks=$(ls "$work"/*.apk 2>/dev/null | grep -vE 'config\.(armeabi|x86|x86_64|mips)' | grep -vE 'config\.(ldpi|mdpi|hdpi|xhdpi|xxxhdpi|tvdpi)\.apk$')
-            if [ -z "$apks" ]; then echo "$p: not downloaded" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"; continue; fi
+            apks=$(ls "$work"/*.apk 2>/dev/null | grep -vE 'config\.(armeabi|x86|x86_64|mips)' | grep -vE 'config\.(ldpi|mdpi|hdpi|xhdpi|xxxhdpi|tvdpi)\.apk$' || true)
+            if [ -z "$apks" ]; then echo "$p: not downloaded (see download.txt)" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"; continue; fi
             if [ "$(echo "$apks" | wc -l)" = 1 ]; then r=$(adb install -r -g $apks 2>&1); else r=$(adb install-multiple -r -g $apks 2>&1); fi
             echo "$p install: $r" | tail -1 | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"
             if [ -d "$work/Android/obb" ]; then adb push "$work/Android/obb/." /sdcard/Android/obb/ >/dev/null 2>&1; fi
