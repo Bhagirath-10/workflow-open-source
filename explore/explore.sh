@@ -35,12 +35,18 @@ adb shell dumpsys package "$PKG" | tr -d '\r' > "$OUT/package.txt"
   echo "  screens (activities):"; grep -oE "$PKG/[A-Za-z0-9_.\$]+" "$OUT/package.txt" | sort -u | head -60 | sed 's/^/    /'
 } >> "$NOTES"
 
+# First start: Android's answer, whether the app's process lives, and the whole log of those seconds.
 adb logcat -c
-launch
-# The first thing the app shows (also when it closes right away), with what Android logged.
-adb exec-out screencap -p > "$OUT/000-first-launch.png"
-say "first launch: on screen $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | tr -d '\r' | sed 's/^ *//')"
-adb logcat -d 2>/dev/null | grep -iE "$PKG|libflutter|libapp|pairip|license|UnsatisfiedLink|FATAL" | head -60 > "$OUT/first-launch-log.txt"
+act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
+say "first launch: activity $act"
+adb shell am start -W -n "$act" 2>&1 | tr -d '\r' | sed 's/^/  am start: /' >> "$NOTES"
+for t in 1 3 6 10; do
+  sleep $t
+  adb exec-out screencap -p > "$OUT/000-first-launch-${t}s.png"
+  say "  after ${t}s: process $(adb shell pidof "$PKG" | tr -d '\r' | grep . || echo 'not running'), on screen: $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-z0-9_.]+/[^ }]+')"
+done
+adb logcat -d -v threadtime 2>/dev/null | grep -vE " (Monkey|AndroidRuntime|app_process|uiautomator)\b" > "$OUT/first-launch-log.txt"
+grep -E "FATAL EXCEPTION|Process: $PKG|Caused by|UnsatisfiedLinkError|dlopen|couldn't find|libflutter|libapp|pairip|LicenseActivity|Force finishing|has died|Killing .*$PKG|ActivityManager: Start proc .*$PKG" "$OUT/first-launch-log.txt" | head -40 | sed 's/^/  log: /' >> "$NOTES"
 end=$(( $(date +%s) + MIN * 60 )); step=0; shots=0; backs=0
 declare -A seen
 while [ "$(date +%s)" -lt "$end" ]; do
@@ -59,11 +65,14 @@ while [ "$(date +%s)" -lt "$end" ]; do
       if [ -n "$xy" ]; then adb shell input tap $xy; else adb shell input keyevent KEYCODE_BACK; fi; sleep 2; continue;;
   esac
   if [ "$top" != "$PKG" ]; then
+    away=$((${away:-0} + 1))
+    if [ "$away" -ge 8 ] && [ "${#seen[@]}" -eq 0 ]; then say "step $step: the app does not stay open (never on screen after 8 tries): stopped exploring"; break; fi
     say "step $step: left the app (on $top): $(ui texts | cut -c1-200)"
     adb shell input keyevent KEYCODE_BACK; sleep 2
     dump && [ "$(ui top)" != "$PKG" ] && launch
     continue
   fi
+  away=0
   sig=$(ui sig)
   if [ -z "${seen[$sig]:-}" ]; then
     seen[$sig]=1; shots=$((shots + 1))
