@@ -1,0 +1,145 @@
+name: App explore - install Play Store apps and explore them
+
+# Separate from the 4bTech Game workflow (android10-install.yml, scripts/): its own files (explore/),
+# its own results (branch app-explore-results of the private repo Bhautik-4B/Game-Auto).
+# For every app: its Play Store page (name, description), the app downloaded (APKPure, through
+# apkeep), installed on a real arm64 Android 13 (Redroid), what Android says about it (version,
+# permissions, screens), then explore/explore.sh taps through its screens and screenshots every
+# new one. It never pays, deletes, logs out, calls, shares or types anything.
+# Started by hand only (Run workflow).
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Play Store package names, separated by spaces
+        default: "com.scanova.app com.mechodal.alakhjoli"
+      minutes:
+        description: Minutes of exploring per app
+        default: "12"
+
+permissions:
+  contents: read
+
+env:
+  PACKAGES: ${{ inputs.packages || 'com.scanova.app com.mechodal.alakhjoli' }}
+  MINUTES: ${{ inputs.minutes || '12' }}
+  ANDROID_SERIAL: localhost:5555
+
+jobs:
+  explore:
+    name: Explore apps on Android 13 (ARM)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq adb unzip tesseract-ocr "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb unzip tesseract-ocr >/dev/null
+          curl -fsSL -o apkeep https://github.com/EFForg/apkeep/releases/latest/download/apkeep-aarch64-unknown-linux-gnu && chmod +x apkeep || echo "apkeep not available"
+
+      - name: Play Store pages
+        run: |
+          for p in $PACKAGES; do
+            mkdir -p "out/$p"
+            curl -fsSL -A "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36" \
+              "https://play.google.com/store/apps/details?id=$p&hl=en&gl=IN" -o "out/$p/play.html" || true
+            python3 -I - "out/$p/play.html" > "out/$p/play.txt" <<'PY'
+          import html, re, sys
+          try:
+              t = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+          except OSError:
+              print("Play Store page not available"); sys.exit()
+          def meta(k):
+              m = re.search(r'<meta (?:property|name)="%s" content="([^"]*)"' % k, t)
+              return html.unescape(m.group(1)) if m else ""
+          print("Name:", meta("og:title"))
+          print("Short:", meta("description"))
+          m = re.search(r'data-g-id="description"[^>]*>(.*?)</div>', t, re.S)
+          if m:
+              print("Description:"); print(re.sub(r"\s+\n", "\n", html.unescape(re.sub(r"<br\s*/?>", "\n", re.sub(r"<(?!br)[^>]+>", "", m.group(1))))).strip())
+          for label in ["Updated on", "Downloads", "Released on", "Offered by", "Contains ads", "In-app purchases"]:
+              m = re.search(re.escape(label) + r"</div><div[^>]*>([^<]+)", t)
+              if m: print(label + ":", html.unescape(m.group(1)))
+          PY
+            rm -f "out/$p/play.html"
+            head -3 "out/$p/play.txt"
+          done
+
+      - name: Download the apps
+        run: |
+          mkdir -p apks
+          for p in $PACKAGES; do
+            mkdir -p "apks/$p"
+            [ -x ./apkeep ] && ./apkeep -a "$p" "apks/$p" >/dev/null 2>&1 || true
+            if ! ls apks/$p/* >/dev/null 2>&1; then
+              curl -fsSL -A "Mozilla/5.0" -o "apks/$p/$p.xapk" "https://d.apkpure.com/b/XAPK/$p?version=latest" || \
+              curl -fsSL -A "Mozilla/5.0" -o "apks/$p/$p.apk" "https://d.apkpure.com/b/APK/$p?version=latest" || true
+            fi
+            echo "$p: $(ls -l apks/$p 2>/dev/null | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Start Android 13 (Redroid, arm64)
+        run: |
+          sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
+          sudo modprobe ashmem_linux 2>/dev/null || true
+          docker run -d --name phone --privileged --memory=6g -p 5555:5555 redroid/redroid:13.0.0-latest \
+            androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420 >/dev/null
+          for i in $(seq 1 84); do adb connect localhost:5555 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
+          [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || { echo "::error::Android did not boot"; exit 1; }
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell settings put secure immersive_mode_confirmations confirmed
+          adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
+          echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r') ready" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install and explore every app (explore/explore.sh)
+        run: |
+          for p in $PACKAGES; do
+            d="apks/$p"; work="$RUNNER_TEMP/x-$p"; mkdir -p "$work"
+            for f in "$d"/*; do
+              case "$f" in
+                *.xapk|*.apks|*.zip) unzip -q -o "$f" -d "$work" ;;
+                *.apk) cp "$f" "$work/" ;;
+              esac
+            done
+            # splits: everything except other CPUs' and other screen densities' parts
+            apks=$(ls "$work"/*.apk 2>/dev/null | grep -vE 'config\.(armeabi|x86|x86_64|mips)' | grep -vE 'config\.(ldpi|mdpi|hdpi|xhdpi|xxxhdpi|tvdpi)\.apk$')
+            if [ -z "$apks" ]; then echo "$p: not downloaded" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"; continue; fi
+            if [ "$(echo "$apks" | wc -l)" = 1 ]; then r=$(adb install -r -g $apks 2>&1); else r=$(adb install-multiple -r -g $apks 2>&1); fi
+            echo "$p install: $r" | tail -1 | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"
+            if [ -d "$work/Android/obb" ]; then adb push "$work/Android/obb/." /sdcard/Android/obb/ >/dev/null 2>&1; fi
+            adb shell pm list packages | grep -q "package:$p$" || continue
+            bash explore/explore.sh "$p" "out/$p" "$MINUTES" || true
+            tail -1 "out/$p/notes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
+            adb shell am force-stop "$p"
+          done
+
+      # Results only in the private repo (this repo is public). Needs PRIVATE_REPO with
+      # Contents: Read and write on Bhautik-4B/Game-Auto.
+      - name: Store results in the private repo (Bhautik-4B/Game-Auto, branch app-explore-results)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
+        run: |
+          url="https://x-access-token:$GH_TOKEN@github.com/Bhautik-4B/Game-Auto.git"
+          if ! git clone -q --depth 1 --branch app-explore-results "$url" priv 2>/dev/null; then
+            git init -q priv; git -C priv checkout -q -b app-explore-results; git -C priv remote add origin "$url"
+          fi
+          ist=$(TZ=Asia/Kolkata date '+%d %b %Y, %I:%M %p IST')
+          dest="runs/$(TZ=Asia/Kolkata date '+%Y-%m-%d_%I-%M-%p')-run$GITHUB_RUN_NUMBER"
+          mkdir -p "priv/$dest"; cp -r out/. "priv/$dest/"
+          {
+            echo "# App explore, run #$GITHUB_RUN_NUMBER"; echo; echo "$ist"
+            for p in $PACKAGES; do
+              echo; echo "# $p"; echo; echo '```'; cat "out/$p/play.txt" 2>/dev/null || true; echo; cat "out/$p/notes.txt" 2>/dev/null || true; echo '```'
+              for f in $(cd "out/$p" 2>/dev/null && ls *.png 2>/dev/null); do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$p/$f\" width=\"300\">"; done
+            done
+          } > "priv/$dest/README.md"
+          cd priv
+          git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
+          git add runs; git commit -q -m "App explore run #$GITHUB_RUN_NUMBER, $ist"
+          git push -q origin HEAD:app-explore-results && echo "Results stored: Bhautik-4B/Game-Auto, branch app-explore-results, $dest" | tee -a "$GITHUB_STEP_SUMMARY"
