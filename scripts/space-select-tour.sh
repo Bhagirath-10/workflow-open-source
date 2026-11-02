@@ -72,6 +72,19 @@ S2=$(echo "$IMP2" | grep -oE 'spaces=[0-9,]+' | cut -d= -f2)
 GOT=""; for sp in ${S2//,/ }; do GOT+="$(rs "cat blackbox/data/user/$sp/$GUEST/files/marker.txt") "; done
 say "  imported copies $S2: $GOT"
 if echo "$IMP2" | grep -q "count=2" && [ "$GOT" = "marker-1 marker-2 " ]; then say "PASS two copies in one file came back with their own data"; else say "FAIL bundle import"; RC=1; fi
+# Speed: about 50 MB like a game's data (750 x 20 kB random, 750 x 20 kB text, 20 x 1 MB packs) in copy 4.
+D3="blackbox/data/user/3/$GUEST/files/client"
+rs "mkdir -p $D3/a $D3/b && cd $D3 && for i in \$(seq 1 750); do head -c 20000 /dev/urandom > a/r\$i.bin; done && yes 4bTech-Space-content-line | head -c 20000 > t && for i in \$(seq 1 750); do cp t b/t\$i.json; done && rm t && for i in \$(seq 1 20); do head -c 1048576 /dev/urandom > big\$i.pak; done"
+say "  copy 4 data: $(rs "du -sk blackbox/data/user/3/$GUEST" | cut -f1) kB, $(rs "find blackbox/data/user/3/$GUEST -type f | wc -l") files"
+cmd export --es pkg "$GUEST" --ei space 3 --es pw "$PW" --es file speed.4bspace
+wait_log "export (OK|FAIL)" 240; SE=$(last_log 'export (OK|FAIL)'); say "  $SE"
+cmd import --es pw "$PW" --es file speed.4bspace
+wait_log "import (OK|FAIL)" 240; SI=$(last_log 'import (OK|FAIL)'); say "  $SI"
+SS=$(echo "$SI" | grep -oE 'spaces=[0-9]+' | cut -d= -f2)
+say "  imported copy: $(rs "find blackbox/data/user/$SS/$GUEST -type f | wc -l") files, $(rs "du -sk blackbox/data/user/$SS/$GUEST" | cut -f1) kB"
+say "SPEED 50 MB: export $(echo "$SE" | grep -oE 'ms=[0-9]+' | cut -d= -f2) ms, import $(echo "$SI" | grep -oE 'ms=[0-9]+' | cut -d= -f2) ms"
+cmd delete --es pkg "$GUEST" --ei space 3; wait_log "delete (OK|FAIL)" 60
+[ -n "$SS" ] && { cmd delete --es pkg "$GUEST" --ei space "$SS"; wait_log "delete (OK|FAIL)" 60; }
 cmd list; wait_log "list OK" 30; say "  $(last_log 'list OK')"
 
 # --- Multi-select screens ------------------------------------------------------------------
