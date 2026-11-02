@@ -43,7 +43,7 @@ jobs:
           sudo apt-get update -qq >/dev/null
           sudo apt-get install -y -qq adb unzip tesseract-ocr "linux-modules-extra-$(uname -r)" >/dev/null 2>&1 || sudo apt-get install -y -qq adb unzip tesseract-ocr >/dev/null
           # apkeep: the release's file for this CPU (names listed, so a wrong guess is visible)
-          url=$(curl -fsSL https://api.github.com/repos/EFForg/apkeep/releases/latest | grep -oE '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | tee apkeep-assets.txt | grep -iE 'aarch64.*linux' | grep -viE 'musl|\.(sha|sig)' | head -1)
+          url=$(curl -fsSL https://api.github.com/repos/EFForg/apkeep/releases/latest | grep -oE '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | tee apkeep-assets.txt | grep -E 'aarch64-unknown-linux-gnu$' | head -1)
           echo "apkeep: ${url:-not found} (assets: $(tr '\n' ' ' < apkeep-assets.txt))"
           [ -n "$url" ] && curl -fsSL -o apkeep "$url" && chmod +x apkeep || echo "apkeep not available"
           sudo apt-get install -y -qq gh >/dev/null 2>&1 || true
