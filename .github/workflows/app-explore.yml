@@ -6,7 +6,7 @@ name: App explore - install Play Store apps and explore them
 # apkeep), installed on a real arm64 Android 13 (Redroid), what Android says about it (version,
 # permissions, screens), then explore/explore.sh taps through its screens and screenshots every
 # new one. It never pays, deletes, logs out, calls, shares or types anything.
-# Started by hand only (Run workflow).
+# Runs when this file or explore/ changes (with the default apps), or by hand (Run workflow).
 
 on:
   workflow_dispatch:
@@ -17,6 +17,10 @@ on:
       minutes:
         description: Minutes of exploring per app
         default: "12"
+  push:
+    paths:
+      - .github/workflows/app-explore.yml
+      - explore/**
 
 permissions:
   contents: read
