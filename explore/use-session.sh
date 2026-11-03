@@ -141,7 +141,13 @@ edit_txn() {
   adb shell input keyevent KEYCODE_MOVE_END; for _ in $(seq 1 8); do adb shell input keyevent KEYCODE_DEL; done
   new=$(( (RANDOM % 90 + 10) * 10 )); adb shell input text "$new"; adb shell input keyevent KEYCODE_BACK; sleep 1
   shot "edit-filled"
-  tap "Save|Update|Save Changes" "Save" >/dev/null && { EDITED=$((EDITED + 1)); log "edited an entry: amount now $new"; shot "after-edit"; }
+  tap "Save|Update|Save Changes" "Save" >/dev/null || return 1
+  dump
+  if ui texts | grep -q "Insufficient Wallet Balance"; then     # the new amount is more than the wallet holds
+    log "  app: Insufficient Wallet Balance on edit, tapping Proceed Anyway"
+    xy=$(ui textat "Proceed Anyway|Proceed|Continue") || xy="742 1497"; adb shell input tap $xy; sleep 3
+  fi
+  EDITED=$((EDITED + 1)); log "edited an entry: amount now $new"; shot "after-edit"
 }
 delete_txn() {
   open_first_txn || return 1
