@@ -196,10 +196,11 @@ jobs:
         timeout-minutes: 70
         run: |
           set +e
+          sudo apt-get install -y -qq lzip >/dev/null 2>&1   # OpenGApps packages are .tar.lz
           git clone -q --depth 1 https://github.com/ayasa520/redroid-script rs
           cd rs; pip3 install -q -r requirements.txt 2>&1 | tail -2
           timeout 60 python3 redroid.py -h </dev/null | head -40
-          for opt in -mtg -lg -g; do
+          for opt in -g -mtg -lg; do
             echo "== redroid.py -a $ANDROID.0.0 $opt"
             # never waits for a keyboard answer (yes to every question), at most 20 minutes per option
             yes | sudo -E timeout 1200 python3 redroid.py -a "$ANDROID.0.0" $opt 2>&1 | tail -40; echo "(exit ${PIPESTATUS[1]})"
@@ -307,4 +308,6 @@ jobs:
           cd priv
           git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
           git add runs; git commit -q -m "App explore run #$GITHUB_RUN_NUMBER, $ist"
-          git push -q origin HEAD:app-explore-results && echo "Results stored: Bhautik-4B/Game-Auto, branch app-explore-results, $dest" | tee -a "$GITHUB_STEP_SUMMARY"
+          # other runs store at the same time: take theirs first, up to 5 tries
+          for t in 1 2 3 4 5; do git push -q origin HEAD:app-explore-results && break; git pull -q --rebase origin app-explore-results; sleep $((t * 5)); done
+          git log -1 --format=%H origin/app-explore-results >/dev/null 2>&1; echo "Results stored: Bhautik-4B/Game-Auto, branch app-explore-results, $dest" | tee -a "$GITHUB_STEP_SUMMARY"
