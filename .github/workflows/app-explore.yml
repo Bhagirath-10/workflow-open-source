@@ -193,14 +193,16 @@ jobs:
       # allowed by the owner (3 Nov): MindTheGapps, else LiteGapps, else OpenGApps, whichever builds for this CPU.
       - name: Android with Google Play services (input gapps)
         if: env.GAPPS == 'true'
+        timeout-minutes: 70
         run: |
           set +e
           git clone -q --depth 1 https://github.com/ayasa520/redroid-script rs
           cd rs; pip3 install -q -r requirements.txt 2>&1 | tail -2
-          python3 redroid.py -h | head -30
+          timeout 60 python3 redroid.py -h </dev/null | head -40
           for opt in -mtg -lg -g; do
             echo "== redroid.py -a $ANDROID.0.0 $opt"
-            sudo -E python3 redroid.py -a "$ANDROID.0.0" $opt 2>&1 | tail -15
+            # never waits for a keyboard answer (yes to every question), at most 20 minutes per option
+            yes | sudo -E timeout 1200 python3 redroid.py -a "$ANDROID.0.0" $opt 2>&1 | tail -40; echo "(exit ${PIPESTATUS[1]})"
             img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -vE ':latest$|-latest$' | head -1)
             [ -n "$img" ] && break
           done
