@@ -111,7 +111,12 @@ jobs:
             #    installs the parts together only when all are signed with the same key as the given
             #    base, so a part APKPure changed is refused (the install step says so).
             if [ "$APKPURE" = "true" ] && [ -x ./apkeep ]; then
-              timeout 300 ./apkeep -d apk-pure -o 'acknowledge_dangers=true' -a "$p" "apks/$p/pure" </dev/null >>"$log" 2>&1
+              echo "APKPure app API answer (first 800 bytes):" >> "$log"
+              curl -sS -m 60 -H "x-cv: 3172501" -H "x-sv: 29" -H "x-abis: arm64-v8a,armeabi-v7a,armeabi" -H "x-gp: 1" \
+                "https://api.pureapk.com/m/v3/cms/app_version?hl=en-US&package_name=$p" -w '\n  (http %{http_code}, %{size_download} bytes)' 2>&1 | tr -cd '[:print:]\n' | head -c 800 >> "$log"; echo >> "$log"
+              echo "apkeep: versions APKPure lists:" >> "$log"
+              timeout 120 ./apkeep -l -d apk-pure -a "$p" </dev/null >>"$log" 2>&1; echo "  (list exit $?)" >> "$log"
+              RUST_LOG=debug timeout 300 ./apkeep -d apk-pure -o 'acknowledge_dangers=true' -a "$p" "apks/$p/pure" </dev/null >>"$log" 2>&1
               echo "apkeep (APKPure) exit $?: $(ls -l apks/$p/pure | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" >> "$log"
             fi
             # 3. APKPure download links
