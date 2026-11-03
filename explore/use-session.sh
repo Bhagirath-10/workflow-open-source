@@ -103,6 +103,10 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
   shot "add-$type-filled"
   tap "Save" "Save" >/dev/null
   sleep 3; dump
+  if ui texts | grep -q "Insufficient Wallet Balance"; then     # more than the wallet holds: go on, as a user would
+    log "  app: Insufficient Wallet Balance ($wal), tapping Continue"; shot "insufficient-balance"
+    tap "Continue|Continue Anyway|Proceed|Yes|OK" "Continue" >/dev/null; sleep 3; dump
+  fi
   if ui texts | grep -qE "Please select|is required|Please enter"; then
     problem "$type not saved: $(ui texts | grep -oE 'Please [a-z ]+\.?|[A-Za-z ]+ is required' | head -2 | tr '\n' ' ')"
     adb shell input keyevent KEYCODE_BACK; sleep 2; return 1
@@ -113,7 +117,8 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
 open_first_txn() {   # opens an entry from the Transactions list (a random one of the first rows)
   go Transaction; dump
   local rows n xy
-  rows=$(ui allat '[-+]? ?[$₹] ?[0-9][0-9,]*(\.[0-9]{2})?' | awk '$2 > 350 && $2 < 1950')
+  # a row is read as one item: "<category> <wallet> $ 40.00 <date>" (or the amount alone)
+  rows=$(ui allat '.*[$₹] ?[0-9][0-9,]*(\.[0-9]{2})?.*' | awk '$2 > 350 && $2 < 1950')
   n=$(echo "$rows" | grep -c . || true)
   [ "$n" -gt 0 ] || { log "no entry to open"; return 1; }
   xy=$(echo "$rows" | sed -n "$(( RANDOM % (n < 4 ? n : 4) + 1 ))p")
@@ -147,7 +152,8 @@ add_wallet() {   # add_wallet <name> <balance>
 }
 add_budget() {   # add_budget <name> <amount> <category>
   go Home
-  tap "Add Budget" "Add Budget" >/dev/null || return 1
+  local i; for i in 1 2 3; do dump; ui textat "Add Budget" >/dev/null && break; adb shell input swipe 540 1600 540 900 400; sleep 1; done
+  tap "Add Budget|\+ Add Budget" "Add Budget" >/dev/null || { problem "no Add Budget on Home"; return 1; }
   fill "Budget Name.*" "$1" "budget name"; fill "Budget Amount.*" "$2" "budget amount"
   dump; xy=$(ui textat "Select Wallet|Select Wallets") && { adb shell input tap $xy; sleep 2; dump; xy=$(ui textat "Cash Wallet") && adb shell input tap $xy; sleep 1; tap "Done" "Done" >/dev/null; }
   pick "Category" "$3" >/dev/null
