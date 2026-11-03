@@ -94,10 +94,11 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
   if [ "$type" = Expense ]; then
     pick "Category" "$cat" || problem "category $cat not picked"
   else
-    pick "Category" "$cat|Salary|Part-Time|Investment|Other" || problem "income category not picked"
+    pick "Category" "$cat" || pick "Category" "Salary|Part-Time|Investment" || problem "income category not picked"
   fi
   fill "Amount.*" "$amt" "amount" || { problem "no amount field"; adb shell input keyevent KEYCODE_BACK; return 1; }
-  pick "Wallet" "Cash Wallet|HDFC Bank|Paytm Wallet" || problem "no wallet to pick"
+  W=("Cash Wallet" "HDFC Bank" "Cash Wallet" "Paytm Wallet"); wal=${W[$((RANDOM % 4))]}
+  pick "Wallet" "$wal" || pick "Wallet" "Cash Wallet|HDFC Bank|Paytm Wallet" || problem "no wallet to pick"
   fill "Note.*" "$note" "note" || true
   shot "add-$type-filled"
   tap "Save" "Save" >/dev/null
@@ -106,14 +107,17 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
     problem "$type not saved: $(ui texts | grep -oE 'Please [a-z ]+\.?|[A-Za-z ]+ is required' | head -2 | tr '\n' ' ')"
     adb shell input keyevent KEYCODE_BACK; sleep 2; return 1
   fi
-  ADDED=$((ADDED + 1)); log "added $type: $cat, $note, $amt"; shot "after-add-$type"
+  ADDED=$((ADDED + 1)); log "added $type: $cat, $note, $amt, ${wal:-}"; shot "after-add-$type"
   watch_ad "after saving"
 }
-open_first_txn() {
+open_first_txn() {   # opens an entry from the Transactions list (a random one of the first rows)
   go Transaction; dump
-  xy=$(ui targets | grep -vE "Home|Wallet|Analytics|Transaction|Filter|Search|\\[EditText\\]" | grep -E "₹|\\$|[0-9]" | head -1 | cut -f1)
-  [ -n "$xy" ] || { log "no entry to open"; return 1; }
-  adb shell input tap $xy; sleep 3; shot "entry-opened"; dump
+  local rows n xy
+  rows=$(ui allat '[-+]? ?[$₹] ?[0-9][0-9,]*(\.[0-9]{2})?' | awk '$2 > 350 && $2 < 1950')
+  n=$(echo "$rows" | grep -c . || true)
+  [ "$n" -gt 0 ] || { log "no entry to open"; return 1; }
+  xy=$(echo "$rows" | sed -n "$(( RANDOM % (n < 4 ? n : 4) + 1 ))p")
+  adb shell input tap 300 "${xy#* }"; sleep 3; shot "entry-opened"; dump
   log "opened an entry: $(ui texts | cut -c1-200)"
 }
 edit_txn() {

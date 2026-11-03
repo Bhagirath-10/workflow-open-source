@@ -105,6 +105,13 @@ def main():
         h = min(hits, key=lambda n: (centre(n)[2], -centre(n)[1]))
         x, y, _ = centre(h)
         print(x, y)
+    elif what == "allat":                             # every node whose text matches, top to bottom
+        rx = re.compile(sys.argv[3], re.I | re.S)
+        hits = sorted((centre(n) for n in ns if rx.fullmatch((n.get("text") or n.get("content-desc") or "").strip())), key=lambda c: c[1])
+        if not hits:
+            sys.exit(1)
+        for x, y, _ in hits:
+            print(x, y)
     elif what == "fieldbelow":
         rx = re.compile(sys.argv[3], re.I)
         edits = [n for n in ns if n.get("class") == "android.widget.EditText"]
