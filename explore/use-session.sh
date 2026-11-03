@@ -104,8 +104,9 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
   tap "Save" "Save" >/dev/null
   sleep 3; dump
   if ui texts | grep -q "Insufficient Wallet Balance"; then     # more than the wallet holds: go on, as a user would
-    log "  app: Insufficient Wallet Balance ($wal), tapping Continue"; shot "insufficient-balance"
-    tap "Continue|Continue Anyway|Proceed|Yes|OK" "Continue" >/dev/null; sleep 3; dump
+    log "  app: Insufficient Wallet Balance ($wal), tapping Proceed Anyway"; shot "insufficient-balance"
+    xy=$(ui textat "Proceed Anyway|Proceed|Continue") || xy="742 1497"     # the red "Proceed Anyway" button
+    adb shell input tap $xy; sleep 3; dump
   fi
   if ui texts | grep -qE "Please select|is required|Please enter"; then
     problem "$type not saved: $(ui texts | grep -oE 'Please [a-z ]+\.?|[A-Za-z ]+ is required' | head -2 | tr '\n' ' ')"
@@ -125,9 +126,16 @@ open_first_txn() {   # opens an entry from the Transactions list (a random one o
   adb shell input tap 300 "${xy#* }"; sleep 3; shot "entry-opened"; dump
   log "opened an entry: $(ui texts | cut -c1-200)"
 }
+menu_item() {   # menu_item <Edit|Delete>: the ⋮ ("Show menu") of Transaction Detail, then the item
+  local xy
+  dump; xy=$(ui textat "Show menu|More options|More") || xy="1016 140"
+  adb shell input tap $xy; sleep 2; dump; shot "menu"
+  xy=$(ui textat "$1.*") || { log "  menu: $(ui texts | cut -c1-150)"; return 1; }
+  adb shell input tap $xy; sleep 3
+}
 edit_txn() {
   open_first_txn || return 1
-  tap "Edit|Edit Transaction|Update" "Edit" >/dev/null || { dump; xy=$(ui targets | grep -iE "edit" | head -1 | cut -f1); [ -n "$xy" ] && adb shell input tap $xy && sleep 3; }
+  menu_item "Edit" || { problem "no Edit in the entry's menu"; adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; return 1; }
   dump; ui fieldbelow "Amount.*" >/dev/null || { problem "no Edit on the entry screen"; adb shell input keyevent KEYCODE_BACK; return 1; }
   xy=$(ui fieldbelow "Amount.*"); adb shell input tap $xy; sleep 1
   adb shell input keyevent KEYCODE_MOVE_END; for _ in $(seq 1 8); do adb shell input keyevent KEYCODE_DEL; done
@@ -137,11 +145,11 @@ edit_txn() {
 }
 delete_txn() {
   open_first_txn || return 1
-  dump; xy=$(python3 -I "$HERE/ui_nodes.py" "$OUT/ui.xml" click "Delete|Delete Transaction|Remove" 2>/dev/null) || \
-    xy=$(grep -oE 'content-desc="[^"]*([Dd]elete|[Tt]rash)[^"]*"[^>]*bounds="[^"]*"' "$OUT/ui.xml" | head -1 | grep -oE '\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]' | tr -d '[]' | tr ',' ' ' | awk '{print int(($1+$3)/2), int(($2+$4)/2)}')
-  [ -n "$xy" ] || { problem "no Delete on the entry screen"; adb shell input keyevent KEYCODE_BACK; return 1; }
-  adb shell input tap $xy; sleep 2; shot "delete-ask"
-  tap "Delete|Yes|Confirm|OK" "confirm delete" >/dev/null && { DELETED=$((DELETED + 1)); log "deleted an entry"; shot "after-delete"; }
+  local what; what=$(ui texts | cut -d'|' -f3-6)
+  menu_item "Delete" || { problem "no Delete in the entry's menu"; adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; return 1; }
+  shot "delete-ask"; dump
+  xy=$(ui textat "Delete|Yes|Confirm|OK|Yes, Delete") && adb shell input tap $xy && sleep 3
+  DELETED=$((DELETED + 1)); log "deleted an entry:$what"; shot "after-delete"
 }
 add_wallet() {   # add_wallet <name> <balance>
   go Wallet
