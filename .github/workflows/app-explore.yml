@@ -13,7 +13,7 @@ on:
     inputs:
       packages:
         description: Play Store package names, separated by spaces
-        default: "com.scanova.app com.mechodal.alakhjoli"
+        default: "com.mechodal.alakhjoli com.expensetracker.renine"
       minutes:
         description: Minutes of exploring per app
         default: "12"
@@ -22,6 +22,10 @@ on:
         type: choice
         options: ["11", "10", "13"]
         default: "11"
+      signup:
+        description: Make a new test account in each app first (explore/signup.sh)
+        type: boolean
+        default: true
       apkpure:
         description: Also download from APKPure/APKCombo (third-party; they have shipped modified apps)
         type: boolean
@@ -35,12 +39,14 @@ permissions:
   contents: read
 
 env:
-  PACKAGES: ${{ inputs.packages || 'com.scanova.app com.mechodal.alakhjoli' }}
-  MINUTES: ${{ inputs.minutes || '12' }}
+  PACKAGES: ${{ inputs.packages || 'com.mechodal.alakhjoli com.expensetracker.renine' }}
+  MINUTES: ${{ inputs.minutes || '15' }}
   ANDROID: ${{ inputs.android || '11' }}
   # The owner said yes to APKPure (3 Nov) for the parts the given APKs lack. Runs started by a
   # push use it; Run workflow asks (input apkpure).
   APKPURE: ${{ github.event_name == 'push' && 'true' || inputs.apkpure }}
+  # A new test account in each app before exploring (the owner asked for it, 3 Nov).
+  SIGNUP: ${{ github.event_name == 'push' && 'true' || inputs.signup }}
   ANDROID_SERIAL: localhost:5555
 
 jobs:
@@ -218,6 +224,11 @@ jobs:
             echo "$p install ($(echo $apks | wc -w) file(s): $(for a in $apks; do basename $a; done | tr '\n' ' ')): $(echo "$r" | tail -2 | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"
             if [ -d "$work/Android/obb" ]; then adb push "$work/Android/obb/." /sdcard/Android/obb/ >/dev/null 2>&1; fi
             adb shell pm list packages | grep -q "package:$p$" || continue
+            # A new test account first (explore/signup.sh), so the screens behind the login are visited.
+            if [ "$SIGNUP" = "true" ]; then
+              rc=0; timeout 600 bash explore/signup.sh "$p" "out/$p" || rc=$?
+              echo "$p sign-up: $( [ $rc = 0 ] && echo 'new test account made' || ([ $rc = 2 ] && echo 'stopped: the app asks for an email/SMS code' || echo "not done (rc $rc), see notes.txt"))" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
             timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
             tail -1 "out/$p/notes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
             adb shell am force-stop "$p"
