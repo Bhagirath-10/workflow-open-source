@@ -100,6 +100,43 @@ jobs:
           mkdir -p apks
           UA="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
           got() { [ "$(find "apks/$1" -type f -size +100k 2>/dev/null | wc -l)" -gt 0 ]; }
+          # Complete apps the owner shared on Google Drive: their file ids are in drive.txt of the
+          # private branch explore-apks (not in this public repo). Each file is named after the app
+          # it holds (read from inside it): given/<package>.apks.
+          git clone -q --depth 1 --branch explore-apks "https://x-access-token:$GH_TOKEN@github.com/Bhautik-4B/Game-Auto.git" given 2>/dev/null || mkdir -p given
+          for id in $(grep -vE '^\s*(#|$)' given/drive.txt 2>/dev/null); do
+            f="drive-$RANDOM.bin"
+            curl -sSL -m 900 -o "$f" "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t"
+            pkg=$(python3 -I - "$f" $PACKAGES <<'PY'
+          import json, re, sys, zipfile
+          path, pkgs = sys.argv[1], sys.argv[2:]
+          try:
+              z = zipfile.ZipFile(path)
+          except Exception:
+              sys.exit()
+          names = z.namelist()
+          if "manifest.json" in names:                       # .xapk
+              try:
+                  print(json.loads(z.read("manifest.json")).get("package_name", "")); sys.exit()
+              except Exception:
+                  pass
+          inner = [n for n in names if n.endswith(".apk")]
+          blobs = [z.read("AndroidManifest.xml")] if "AndroidManifest.xml" in names else []
+          for n in inner[:3]:
+              try:
+                  blobs.append(zipfile.ZipFile(z.open(n)).read("AndroidManifest.xml"))
+              except Exception:
+                  pass
+          text = " ".join(b.decode("utf-16-le", "ignore") for b in blobs)
+          for p in pkgs:
+              if re.search(re.escape(p) + r"(?![A-Za-z0-9_.])", text) or p in text:
+                  print(p); sys.exit()
+          PY
+          )
+            parts=$(unzip -l "$f" 2>/dev/null | grep -oE '[^ /]+\.apk$' | tr '\n' ' ')
+            echo "Google Drive file: $(stat -c %s "$f") bytes, app: ${pkg:-unknown}, parts: ${parts:-none (not a zip)}" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ -n "$pkg" ]; then if [ "$(echo $parts | wc -w)" -gt 0 ]; then mv "$f" "given/$pkg.apks"; else mv "$f" "given/$pkg.apk"; fi; fi
+          done
           for p in $PACKAGES; do
             mkdir -p "apks/$p/given" "apks/$p/pure"; log="out/$p/download.txt"; : > "$log"
             # 1. given by hand in the private repo: branch explore-apks (<package>.apk/.apks/.xapk) or release explore-apks
