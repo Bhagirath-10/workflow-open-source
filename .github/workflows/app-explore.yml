@@ -25,6 +25,10 @@ on:
       session_minutes:
         description: "Instead of exploring: use the app like a real person for this many minutes (explore/use-session.sh; 0 = explore)"
         default: "0"
+      gapps:
+        description: Android with Google Play services (built with redroid-script), for apps that need them (Alakh Joli)
+        type: boolean
+        default: false
       signup:
         description: Make a new test account in each app first (explore/signup.sh)
         type: boolean
@@ -45,6 +49,7 @@ env:
   PACKAGES: ${{ inputs.packages || 'com.mechodal.alakhjoli com.expensetracker.renine' }}
   MINUTES: ${{ inputs.minutes || '15' }}
   SESSION: ${{ inputs.session_minutes || '0' }}
+  GAPPS: ${{ inputs.gapps || 'false' }}
   ANDROID: ${{ inputs.android || '11' }}
   # The owner said yes to APKPure (3 Nov) for the parts the given APKs lack. Runs started by a
   # push use it; Run workflow asks (input apkpure).
@@ -184,11 +189,29 @@ jobs:
             echo "$p: given: $(ls apks/$p/given 2>/dev/null | tr '\n' ' ') | APKPure: $(ls apks/$p/pure 2>/dev/null | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "$log"
           done
 
+      # Google Play services added to the Android image by redroid-script (github.com/ayasa520/redroid-script),
+      # allowed by the owner (3 Nov): MindTheGapps, else LiteGapps, else OpenGApps, whichever builds for this CPU.
+      - name: Android with Google Play services (input gapps)
+        if: env.GAPPS == 'true'
+        run: |
+          set +e
+          git clone -q --depth 1 https://github.com/ayasa520/redroid-script rs
+          cd rs; pip3 install -q -r requirements.txt 2>&1 | tail -2
+          python3 redroid.py -h | head -30
+          for opt in -mtg -lg -g; do
+            echo "== redroid.py -a $ANDROID.0.0 $opt"
+            sudo -E python3 redroid.py -a "$ANDROID.0.0" $opt 2>&1 | tail -15
+            img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -vE ':latest$|-latest$' | head -1)
+            [ -n "$img" ] && break
+          done
+          echo "image with Google Play services: ${img:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ -n "$img" ] && echo "IMAGE=$img" >> "$GITHUB_ENV"
+
       - name: Start Android (Redroid, arm64)
         run: |
           sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
           sudo modprobe ashmem_linux 2>/dev/null || true
-          docker run -d --name phone --privileged --memory=6g -p 5555:5555 "redroid/redroid:$ANDROID.0.0-latest" \
+          docker run -d --name phone --privileged --memory=6g -p 5555:5555 "${IMAGE:-redroid/redroid:$ANDROID.0.0-latest}" \
             androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=2280 androidboot.redroid_dpi=420 >/dev/null
           for i in $(seq 1 84); do adb connect localhost:5555 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
           [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || { echo "::error::Android did not boot"; exit 1; }
@@ -197,7 +220,7 @@ jobs:
           adb shell settings put global animator_duration_scale 0
           adb shell settings put secure immersive_mode_confirmations confirmed
           adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
-          echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r') ready" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r') ready (${IMAGE:-plain image}); Google Play services installed: $(adb shell pm list packages com.google.android.gms | tr -d '\r' | grep -c gms)" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Install and explore every app (explore/explore.sh)
         env:
