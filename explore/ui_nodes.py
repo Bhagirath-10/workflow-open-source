@@ -6,6 +6,7 @@
   ui_nodes.py <dump.xml> targets             clickable things, one per line: "x y<TAB>label"
   ui_nodes.py <dump.xml> click <regex>        centre "x y" of the lowest clickable thing whose text
                                              (or a child's text) matches <regex> (the button, not the title)
+  ui_nodes.py <dump.xml> textat <regex>       centre "x y" of the text itself (lowest match), for pickers and lists
   ui_nodes.py <dump.xml> edits               centres of the text fields, top to bottom, one per line
   ui_nodes.py <dump.xml> fieldbelow <regex>   centre of the text field right under the label matching <regex>
                                              (or the field whose own hint matches it)
@@ -93,6 +94,16 @@ def main():
         if not hits:
             sys.exit(1)
         x, y, _ = centre(max(hits, key=lambda h: centre(h)[1]))
+        print(x, y)
+    elif what == "textat":
+        rx = re.compile(sys.argv[3], re.I | re.S)
+        hits = [n for n in ns if rx.fullmatch((n.get("text") or n.get("content-desc") or "").strip())]
+        hits = [h for h in hits if centre(h)[2] > 0]
+        if not hits:
+            sys.exit(1)
+        # the smallest matching node (the word itself, not a big container that also carries it)
+        h = min(hits, key=lambda n: (centre(n)[2], -centre(n)[1]))
+        x, y, _ = centre(h)
         print(x, y)
     elif what == "fieldbelow":
         rx = re.compile(sys.argv[3], re.I)

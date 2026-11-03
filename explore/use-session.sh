@@ -60,11 +60,17 @@ go() {  # bottom tab: Home, Wallet, Analytics, Transaction
   ensure_app "$1"; tap "$1" "$1 tab" >/dev/null || { adb shell input keyevent KEYCODE_BACK; sleep 2; tap "$1" "$1 tab" >/dev/null; }
   sleep 2; watch_ad "$1"; banners "$1"
 }
-pick() {  # pick <dropdown regex> <item regex>
-  tap "$1" "$1" >/dev/null || return 1
-  tap "$2" "$2" >/dev/null && return 0
-  adb shell input swipe 540 1600 540 800 400; sleep 1
-  tap "$2" "$2" >/dev/null
+pick() {  # pick <field text regex> <item regex>: tap the words of the field, then the item in its list
+  local xy i
+  dump; xy=$(ui textat "$1") || { log "  no \"$1\" field on the screen"; return 1; }
+  adb shell input tap $xy; sleep 3
+  for i in 0 1 2; do
+    dump
+    if xy=$(ui textat "$2"); then adb shell input tap $xy; sleep 2; log "  picked $2"; return 0; fi
+    adb shell input swipe 540 1700 540 1000 400; sleep 1        # the list may need scrolling
+  done
+  log "  \"$2\" not in the list: $(ui texts | cut -c1-200)"; shot "list"
+  adb shell input keyevent KEYCODE_BACK; sleep 2; return 1
 }
 
 CATS_EXP=("Food & Dining:Tea and snacks:40" "Food & Dining:Lunch with team:320" "Travel & Transport:Petrol:500" "Travel & Transport:Auto rickshaw:80"
@@ -80,12 +86,12 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
   adb shell input tap $xy; sleep 3
   tap "$type|Add $type" "$type" >/dev/null || { problem "no $type choice after +"; adb shell input keyevent KEYCODE_BACK; return 1; }
   if [ "$type" = Expense ]; then
-    pick "Select Category" "$cat" || { problem "category $cat not found"; }
+    pick "Select Category|Category" "$cat" || problem "category $cat not picked"
   else
     pick "Select Category|Select Source|Category" "$cat|Salary|Other|Income" || true
   fi
   fill "Amount.*" "$amt" "amount" || { problem "no amount field"; adb shell input keyevent KEYCODE_BACK; return 1; }
-  pick "Select Wallet" "Cash Wallet|HDFC Bank|.*Wallet.*" || problem "no wallet to pick"
+  pick "Select Wallet" "Cash Wallet|HDFC Bank|Paytm Wallet" || problem "no wallet to pick"
   fill "Note.*" "$note" "note" || true
   shot "add-$type-filled"
   tap "Save" "Save" >/dev/null
@@ -133,7 +139,7 @@ add_budget() {   # add_budget <name> <amount> <category>
   go Home
   tap "Add Budget" "Add Budget" >/dev/null || return 1
   fill "Budget Name.*" "$1" "budget name"; fill "Budget Amount.*" "$2" "budget amount"
-  if tap "Select Wallet|Wallet" "wallets" >/dev/null; then tap "Select All|Cash Wallet" "wallets" >/dev/null; tap "Done" "Done" >/dev/null; fi
+  dump; xy=$(ui textat "Select Wallet|Select Wallets") && { adb shell input tap $xy; sleep 2; dump; xy=$(ui textat "Cash Wallet") && adb shell input tap $xy; sleep 1; tap "Done" "Done" >/dev/null; }
   pick "Select Category" "$3" >/dev/null
   shot "budget-filled"
   adb shell input swipe 540 1600 540 600 400; sleep 1
