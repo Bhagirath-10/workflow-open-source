@@ -38,6 +38,9 @@ env:
   PACKAGES: ${{ inputs.packages || 'com.scanova.app com.mechodal.alakhjoli' }}
   MINUTES: ${{ inputs.minutes || '12' }}
   ANDROID: ${{ inputs.android || '11' }}
+  # The owner said yes to APKPure (3 Nov) for the parts the given APKs lack. Runs started by a
+  # push use it; Run workflow asks (input apkpure).
+  APKPURE: ${{ github.event_name == 'push' && 'true' || inputs.apkpure }}
   ANDROID_SERIAL: localhost:5555
 
 jobs:
@@ -96,33 +99,37 @@ jobs:
           set +e   # a source that fails is logged, then the next one is tried
           mkdir -p apks
           UA="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
-          got() { ls "apks/$1"/* >/dev/null 2>&1 && [ "$(du -cb apks/$1/* | tail -1 | cut -f1)" -gt 100000 ]; }
+          got() { [ "$(find "apks/$1" -type f -size +100k 2>/dev/null | wc -l)" -gt 0 ]; }
           for p in $PACKAGES; do
-            mkdir -p "apks/$p"; log="out/$p/download.txt"; : > "$log"
+            mkdir -p "apks/$p/given" "apks/$p/pure"; log="out/$p/download.txt"; : > "$log"
             # 1. given by hand in the private repo: branch explore-apks (<package>.apk/.apks/.xapk) or release explore-apks
             if [ ! -d given ]; then git clone -q --depth 1 --branch explore-apks "https://x-access-token:$GH_TOKEN@github.com/Bhautik-4B/Game-Auto.git" given 2>/dev/null || mkdir -p given; fi
-            cp given/$p.* "apks/$p/" 2>/dev/null && echo "private branch explore-apks: $(ls given/$p.* | xargs -n1 basename | tr '\n' ' ')" >> "$log" || echo "private branch explore-apks: none" >> "$log"
-            gh release download explore-apks --repo Bhautik-4B/Game-Auto --pattern "$p.*" --dir "apks/$p" >>"$log" 2>&1 && echo "private release explore-apks: ok" >> "$log" || echo "private release explore-apks: none" >> "$log"
-            # 2. apkeep (APKPure API): only with the input apkpure (APKPure is known to have shipped modified apps)
-            if ! got "$p" && [ -x ./apkeep ] && [ "${{ inputs.apkpure }}" = "true" ]; then
-              timeout 300 ./apkeep -d apk-pure -a "$p" "apks/$p" </dev/null >>"$log" 2>&1; echo "apkeep exit $?" >> "$log"
+            cp given/$p.* "apks/$p/given/" 2>/dev/null && echo "private branch explore-apks: $(ls given/$p.* | xargs -n1 basename | tr '\n' ' ')" >> "$log" || echo "private branch explore-apks: none" >> "$log"
+            gh release download explore-apks --repo Bhautik-4B/Game-Auto --pattern "$p.*" --dir "apks/$p/given" >>"$log" 2>&1 && echo "private release explore-apks: ok" >> "$log" || echo "private release explore-apks: none" >> "$log"
+            # 2. apkeep from APKPure (its API), also when a base was given: for the split parts a base
+            #    from Google Play needs (the app's code for the CPU: libflutter.so, libapp.so). Android
+            #    installs the parts together only when all are signed with the same key as the given
+            #    base, so a part APKPure changed is refused (the install step says so).
+            if [ "$APKPURE" = "true" ] && [ -x ./apkeep ]; then
+              timeout 300 ./apkeep -d apk-pure -o 'acknowledge_dangers=true' -a "$p" "apks/$p/pure" </dev/null >>"$log" 2>&1
+              echo "apkeep (APKPure) exit $?: $(ls -l apks/$p/pure | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" >> "$log"
             fi
             # 3. APKPure download links
             for kind in XAPK APK; do
               got "$p" && break
-              [ "${{ inputs.apkpure }}" = "true" ] || break
-              code=$(curl -sL -A "$UA" -o "apks/$p/$p.$(echo $kind | tr A-Z a-z)" -w '%{http_code} %{content_type} %{size_download}' "https://d.apkpure.com/b/$kind/$p?version=latest")
+              [ "$APKPURE" = "true" ] || break
+              code=$(curl -sL -A "$UA" -o "apks/$p/pure/$p.$(echo $kind | tr A-Z a-z)" -w '%{http_code} %{content_type} %{size_download}' "https://d.apkpure.com/b/$kind/$p?version=latest")
               echo "apkpure $kind: $code" >> "$log"
-              got "$p" || rm -f "apks/$p/$p.$(echo $kind | tr A-Z a-z)"
+              got "$p" || rm -f "apks/$p/pure/$p.$(echo $kind | tr A-Z a-z)"
             done
             # 4. APKCombo: its page names a download link
-            if ! got "$p" && [ "${{ inputs.apkpure }}" = "true" ]; then
+            if ! got "$p" && [ "$APKPURE" = "true" ]; then
               page=$(curl -sL -A "$UA" "https://apkcombo.com/a/$p/download/apk" || true)
               link=$(echo "$page" | grep -oE 'https://[^"]*(apkcombo|pureapk)[^"]*\.(apk|xapk)[^"]*' | head -1 | sed 's/&amp;/\&/g')
               echo "apkcombo page: ${#page} bytes, link: ${link:-none}" >> "$log"
-              if [ -n "$link" ]; then f="apks/$p/$p.$(echo "$link" | grep -oE 'xapk|apk' | head -1)"; curl -sL -A "$UA" -o "$f" "$link"; got "$p" || rm -f "$f"; fi
+              if [ -n "$link" ]; then f="apks/$p/pure/$p.$(echo "$link" | grep -oE 'xapk|apk' | head -1)"; curl -sL -A "$UA" -o "$f" "$link"; got "$p" || rm -f "$f"; fi
             fi
-            echo "$p: $(ls -l apks/$p 2>/dev/null | tail -n +2 | awk '{print $NF, $5}' | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "$log"
+            echo "$p: given: $(ls apks/$p/given 2>/dev/null | tr '\n' ' ') | APKPure: $(ls apks/$p/pure 2>/dev/null | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "$log"
           done
 
       - name: Start Android (Redroid, arm64)
@@ -143,16 +150,27 @@ jobs:
       - name: Install and explore every app (explore/explore.sh)
         run: |
           for p in $PACKAGES; do
-            d="apks/$p"; work="$RUNNER_TEMP/x-$p"; mkdir -p "$work"
-            for f in "$d"/*; do
-              [ -e "$f" ] || continue
-              case "$f" in
-                *.xapk|*.apks|*.zip) unzip -q -o "$f" -d "$work" ;;
-                *.apk) cp "$f" "$work/" ;;
-              esac
+            d="apks/$p"; work="$RUNNER_TEMP/x-$p"; mkdir -p "$work/given" "$work/pure"
+            for src in given pure; do
+              for f in "$d/$src"/*; do
+                [ -f "$f" ] || continue
+                case "$f" in
+                  *.xapk|*.apks|*.zip) unzip -q -o "$f" -d "$work/$src" ;;
+                  *.apk) cp "$f" "$work/$src/" ;;
+                esac
+              done
             done
-            # splits: everything except other CPUs' and other screen densities' parts
-            apks=$(ls "$work"/*.apk 2>/dev/null | grep -vE 'config\.(armeabi|x86|x86_64|mips)' | grep -vE 'config\.(ldpi|mdpi|hdpi|xhdpi|xxxhdpi|tvdpi)\.apk$' || true)
+            # The parts: the given base (from Google Play) when there is one, else APKPure's; the split
+            # parts (config.* / split_config.*) from either, without other CPUs' and other screen
+            # densities' parts. All must be signed with one key, or Android refuses them.
+            isbase() { case "$(basename "$1")" in config.*|split_config.*|split_*) return 1;; *) return 0;; esac; }
+            base=""
+            for f in "$work"/given/*.apk "$work"/pure/*.apk; do [ -f "$f" ] && isbase "$f" && { base=$f; break; }; done
+            splits=$(for f in "$work"/given/*.apk "$work"/pure/*.apk; do [ -f "$f" ] && ! isbase "$f" && echo "$f"; done \
+              | grep -vE 'config\.(armeabi|armeabi_v7a|x86|x86_64|mips)\.apk$' | grep -vE 'config\.(ldpi|mdpi|hdpi|xhdpi|xxxhdpi|tvdpi)\.apk$' \
+              | awk -F/ '!seen[$NF]++' || true)
+            echo "$p parts: base ${base:+$(basename "$(dirname "$base")")/$(basename "$base")}, splits: $(for f in $splits; do printf '%s/%s ' "$(basename "$(dirname "$f")")" "$(basename "$f")"; done)" | tee -a "out/$p/notes.txt"
+            apks=$(for f in $base $splits; do echo "$f"; done)
             if [ -z "$apks" ]; then echo "$p: not downloaded (see download.txt)" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"; continue; fi
             if [ "$(echo "$apks" | wc -l)" = 1 ]; then r=$(adb install -r -g $apks 2>&1); else r=$(adb install-multiple -r -g $apks 2>&1); fi
             echo "$p install ($(echo $apks | wc -w) file(s): $(for a in $apks; do basename $a; done | tr '\n' ' ')): $(echo "$r" | tail -2 | tr '\n' ' ')" | tee -a "$GITHUB_STEP_SUMMARY" "out/$p/notes.txt"
