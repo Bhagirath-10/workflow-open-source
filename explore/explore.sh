@@ -23,7 +23,8 @@ dump() {
   return 1
 }
 ocr_text() { timeout 15 adb exec-out screencap -p > "$OUT/screen.png"; tesseract "$OUT/screen.png" - --psm 11 2>/dev/null | tr -s '\n' '|' | cut -c1-800; }
-launch() { timeout 30 adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6; }
+# Opens the app at its launcher screen (monkey did not start apps on this Android image).
+launch() { timeout 30 adb shell am start -n "${act:-$PKG/.MainActivity}" >/dev/null 2>&1; sleep 6; }
 
 # What the app is, from Android itself.
 adb shell dumpsys package "$PKG" | tr -d '\r' > "$OUT/package.txt"
