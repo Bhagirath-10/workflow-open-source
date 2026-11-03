@@ -231,6 +231,8 @@ jobs:
             if [ "$SIGNUP" = "true" ]; then
               rc=0; timeout 600 bash explore/signup.sh "$p" "out/$p" || rc=$?
               echo "$p sign-up: $( [ $rc = 0 ] && echo 'new test account made' || ([ $rc = 2 ] && echo 'stopped: the app asks for an email/SMS code' || ([ $rc = 3 ] && echo 'stopped: needs the secret EXPLORE_MOBILE (a genuine mobile number)' || echo "not done (rc $rc), see notes.txt")))" | tee -a "$GITHUB_STEP_SUMMARY"
+              # Sample data on the new account, so the screens that are empty without data are seen too.
+              if [ $rc = 0 ]; then timeout 900 bash explore/sample-data.sh "$p" "out/$p" || true; fi
             fi
             timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
             tail -1 "out/$p/notes.txt" | tee -a "$GITHUB_STEP_SUMMARY"

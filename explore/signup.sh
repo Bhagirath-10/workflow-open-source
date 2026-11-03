@@ -10,54 +10,8 @@ set -uo pipefail
 PKG=$1; OUT=$2
 HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$OUT"; NOTES="$OUT/notes.txt"; N=0
-say() { echo "$*" >> "$NOTES"; }
-ui() { python3 -I "$HERE/ui_nodes.py" "$OUT/ui.xml" "$@" 2>/dev/null; }
-dump() {
-  local i
-  for i in 1 2 3; do
-    adb shell rm -f /sdcard/ui.xml
-    timeout 25 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
-    timeout 10 adb shell cat /sdcard/ui.xml 2>/dev/null | tr -d '\r' > "$OUT/ui.xml"
-    grep -q '<hierarchy' "$OUT/ui.xml" && return 0
-    sleep 1
-  done
-  return 1
-}
-shot() { N=$((N + 1)); timeout 15 adb exec-out screencap -p > "$OUT/$(printf 'signup-%02d' $N)-$1.png"; }
-# tap <regex> <what>: the lowest clickable thing with that text (the button, not a title)
-tap() {
-  local xy; dump; xy=$(ui click "$1") || { say "  signup: no \"$2\" on the screen: $(ui texts | cut -c1-300)"; return 1; }
-  say "  signup: tap $2 ($xy)"; adb shell input tap $xy; sleep 4
-}
-# fill <label regex> <text> <what>: types into the field under that label (scrolls up to 3 times)
-fill() {
-  local xy i
-  for i in 0 1 2 3; do
-    dump && xy=$(ui fieldbelow "$1") && break
-    adb shell input keyevent 111; adb shell input swipe 540 1300 540 500 400; sleep 1   # keyboard away, scroll up
-  done
-  [ -n "${xy:-}" ] || { say "  signup: no field \"$3\": $(ui texts | cut -c1-300)"; return 1; }
-  adb shell input tap $xy; sleep 1
-  adb shell input text "$(printf '%s' "$2" | sed 's/ /%s/g')"; sleep 1
-  adb shell input keyevent KEYCODE_BACK  # hide the keyboard, so the fields under it can be seen
-  say "  signup: typed $3"; sleep 1
-}
-launch() {
-  local act; act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
-  timeout 30 adb shell am start -n "$act" >/dev/null 2>&1; sleep 8
-}
-# Startup ad (AdMob full screen): Back closes it.
-skip_ad() {
-  local i
-  for i in 1 2 3; do
-    timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity || return 0
-    # The ad closes with its "Continue to app" / Close button (Back does nothing on it)
-    dump
-    if xy=$(ui click "Continue to app|Close|Close ad|Skip|Skip ad|X"); then say "  signup: startup ad, tap its close button ($xy)"; adb shell input tap $xy
-    else say "  signup: startup ad, Back"; adb shell input keyevent KEYCODE_BACK; fi
-    sleep 3
-  done
-}
+TAG=signup
+. "$HERE/lib.sh"
 asks_code() {   # the screen asks for a code (OTP) or to verify the email
   dump; ui texts | grep -qiE "\bOTP\b|verification code|verify your email|enter (the )?code|કોડ"
 }
@@ -68,8 +22,15 @@ case "$PKG" in
   com.mechodal.alakhjoli) NAME="Bhakti Tester"; EMAIL="bhakti.tester.$RUN@4born.com"
     # Alakh Joli refuses made-up numbers ("Please enter a genuine mobile number" for 9876543210):
     # the owner's test number, from the secret EXPLORE_MOBILE.
+    # Without the secret: the company's own phone number from its website (the owner said to take it from there).
     MOBILE=${EXPLORE_MOBILE:-}
-    [ -n "$MOBILE" ] || { say "STOP signup: Alakh Joli needs a genuine mobile number (secret EXPLORE_MOBILE is not set)"; exit 3; };;
+    if [ -z "$MOBILE" ]; then
+      for u in https://4born.com https://www.4born.com https://4born.com/contact https://4born.com/contact-us; do
+        MOBILE=$(curl -sSL -m 30 -A "Mozilla/5.0" "$u" 2>/dev/null | grep -oE '(\+91|91)?[ -]?[6-9][0-9]{4}[ -]?[0-9]{5}' | tr -d ' +-' | sed -E 's/^91([6-9][0-9]{9})$/\1/' | grep -E '^[6-9][0-9]{9}$' | head -1)
+        [ -n "$MOBILE" ] && { say "  signup: mobile number from the company website ($u)"; break; }
+      done
+    fi
+    [ -n "$MOBILE" ] || { say "STOP signup: Alakh Joli needs a genuine mobile number (no secret EXPLORE_MOBILE, none found on 4born.com)"; exit 3; };;
   com.expensetracker.renine) NAME="Expense Tester"; EMAIL="expense.tester.$RUN@4born.com"; MOBILE=;;
   *) say "signup: no sign-up steps known for $PKG"; exit 1;;
 esac
