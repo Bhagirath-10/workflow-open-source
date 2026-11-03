@@ -22,6 +22,9 @@ on:
         type: choice
         options: ["11", "10", "13"]
         default: "11"
+      session_minutes:
+        description: "Instead of exploring: use the app like a real person for this many minutes (explore/use-session.sh; 0 = explore)"
+        default: "0"
       signup:
         description: Make a new test account in each app first (explore/signup.sh)
         type: boolean
@@ -41,6 +44,7 @@ permissions:
 env:
   PACKAGES: ${{ inputs.packages || 'com.mechodal.alakhjoli com.expensetracker.renine' }}
   MINUTES: ${{ inputs.minutes || '15' }}
+  SESSION: ${{ inputs.session_minutes || '0' }}
   ANDROID: ${{ inputs.android || '11' }}
   # The owner said yes to APKPure (3 Nov) for the parts the given APKs lack. Runs started by a
   # push use it; Run workflow asks (input apkpure).
@@ -53,7 +57,7 @@ jobs:
   explore:
     name: Explore apps on Android ${{ inputs.android || '11' }} (ARM)
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
@@ -232,9 +236,14 @@ jobs:
               rc=0; timeout 600 bash explore/signup.sh "$p" "out/$p" || rc=$?
               echo "$p sign-up: $( [ $rc = 0 ] && echo 'new test account made' || ([ $rc = 2 ] && echo 'stopped: the app asks for an email/SMS code' || ([ $rc = 3 ] && echo 'stopped: needs the secret EXPLORE_MOBILE (a genuine mobile number)' || echo "not done (rc $rc), see notes.txt")))" | tee -a "$GITHUB_STEP_SUMMARY"
               # Sample data on the new account, so the screens that are empty without data are seen too.
-              if [ $rc = 0 ]; then timeout 900 bash explore/sample-data.sh "$p" "out/$p" || true; fi
+              if [ $rc = 0 ] && [ "${SESSION:-0}" = 0 ]; then timeout 900 bash explore/sample-data.sh "$p" "out/$p" || true; fi
             fi
-            timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
+            if [ "${SESSION:-0}" -gt 0 ]; then
+              timeout $(( SESSION * 60 + 1200 )) bash explore/use-session.sh "$p" "out/$p" "$SESSION" || echo "session stopped after its time limit" >> "out/$p/notes.txt"
+              cat "out/$p/summary.txt" 2>/dev/null | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
+            fi
             tail -1 "out/$p/notes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
             adb shell am force-stop "$p"
           done
@@ -252,12 +261,22 @@ jobs:
           fi
           ist=$(TZ=Asia/Kolkata date '+%d %b %Y, %I:%M %p IST')
           dest="runs/$(TZ=Asia/Kolkata date '+%Y-%m-%d_%I-%M-%p')-run$GITHUB_RUN_NUMBER"
+          # A long session takes hundreds of screenshots: stored at half size as JPEG.
+          if [ "${SESSION:-0}" -gt 0 ]; then
+            sudo apt-get install -y -qq python3-pil >/dev/null 2>&1 || true
+            python3 -I - out <<'PY'
+          import pathlib, sys
+          from PIL import Image
+          for f in pathlib.Path(sys.argv[1]).rglob("use-*.png"):
+              im = Image.open(f).convert("RGB"); im.thumbnail((540, 1140)); im.save(f.with_suffix(".jpg"), quality=70); f.unlink()
+          PY
+          fi
           mkdir -p "priv/$dest"; cp -r out/. "priv/$dest/"
           {
             echo "# App explore, run #$GITHUB_RUN_NUMBER"; echo; echo "$ist"
             for p in $PACKAGES; do
               echo; echo "# $p"; echo; echo '```'; cat "out/$p/play.txt" 2>/dev/null || true; echo; cat "out/$p/notes.txt" 2>/dev/null || true; echo '```'
-              for f in $(cd "out/$p" 2>/dev/null && ls *.png 2>/dev/null); do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$p/$f\" width=\"300\">"; done
+              for f in $(cd "out/$p" 2>/dev/null && ls *.png *.jpg 2>/dev/null); do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$p/$f\" width=\"300\">"; done
             done
           } > "priv/$dest/README.md"
           cd priv

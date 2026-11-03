@@ -14,7 +14,7 @@ dump() {
   done
   return 1
 }
-shot() { N=$((N + 1)); timeout 15 adb exec-out screencap -p > "$OUT/$(printf '${TAG}-%02d' $N)-$1.png"; }
+shot() { N=$((N + 1)); timeout 15 adb exec-out screencap -p > "$OUT/$(printf '%s-%04d' "$TAG" "$N")-$1.png"; }
 # tap <regex> <what>: the lowest clickable thing with that text (the button, not a title)
 tap() {
   local xy; dump; xy=$(ui click "$1") || { say "  $TAG: no \"$2\" on the screen: $(ui texts | cut -c1-300)"; return 1; }
