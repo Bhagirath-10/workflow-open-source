@@ -34,12 +34,12 @@ fill() {
   local xy i
   for i in 0 1 2 3; do
     dump && xy=$(ui fieldbelow "$1") && break
-    adb shell input swipe 540 1500 540 900 400; sleep 1
+    adb shell input keyevent 111; adb shell input swipe 540 1300 540 500 400; sleep 1   # keyboard away, scroll up
   done
   [ -n "${xy:-}" ] || { say "  signup: no field \"$3\": $(ui texts | cut -c1-300)"; return 1; }
   adb shell input tap $xy; sleep 1
   adb shell input text "$(printf '%s' "$2" | sed 's/ /%s/g')"; sleep 1
-  adb shell input keyevent 111          # hide the keyboard (Escape), so the next field is visible
+  adb shell input keyevent KEYCODE_BACK  # hide the keyboard, so the fields under it can be seen
   say "  signup: typed $3"; sleep 1
 }
 launch() {
@@ -51,7 +51,11 @@ skip_ad() {
   local i
   for i in 1 2 3; do
     timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity || return 0
-    say "  signup: startup ad on screen, Back"; adb shell input keyevent KEYCODE_BACK; sleep 3
+    # The ad closes with its "Continue to app" / Close button (Back does nothing on it)
+    dump
+    if xy=$(ui click "Continue to app|Close|Close ad|Skip|Skip ad|X"); then say "  signup: startup ad, tap its close button ($xy)"; adb shell input tap $xy
+    else say "  signup: startup ad, Back"; adb shell input keyevent KEYCODE_BACK; fi
+    sleep 3
   done
 }
 asks_code() {   # the screen asks for a code (OTP) or to verify the email
@@ -61,7 +65,11 @@ asks_code() {   # the screen asks for a code (OTP) or to verify the email
 RUN=${GITHUB_RUN_NUMBER:-$(date +%s)}
 PASS="Tst$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 8)9@x"
 case "$PKG" in
-  com.mechodal.alakhjoli) NAME="Bhakti Tester"; EMAIL="bhakti.tester.$RUN@4born.com"; MOBILE=9876543210;;
+  com.mechodal.alakhjoli) NAME="Bhakti Tester"; EMAIL="bhakti.tester.$RUN@4born.com"
+    # Alakh Joli refuses made-up numbers ("Please enter a genuine mobile number" for 9876543210):
+    # the owner's test number, from the secret EXPLORE_MOBILE.
+    MOBILE=${EXPLORE_MOBILE:-}
+    [ -n "$MOBILE" ] || { say "STOP signup: Alakh Joli needs a genuine mobile number (secret EXPLORE_MOBILE is not set)"; exit 3; };;
   com.expensetracker.renine) NAME="Expense Tester"; EMAIL="expense.tester.$RUN@4born.com"; MOBILE=;;
   *) say "signup: no sign-up steps known for $PKG"; exit 1;;
 esac
