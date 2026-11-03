@@ -74,6 +74,14 @@ while [ "$(date +%s)" -lt "$end" ]; do
     continue
   fi
   away=0
+  # A full-screen ad: never tapped. Wait for its close button (or Back), close it, go on.
+  if timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity; then
+    ADS_SEEN=$(( ${ADS_SEEN:-0} + 1 )); shots=$((shots + 1)); adb exec-out screencap -p > "$OUT/$(printf %03d $shots)-ad.png"
+    say "step $step: full-screen AD #$ADS_SEEN (not tapped): $(ui texts | cut -c1-160)"
+    sleep 6; dump
+    if xy=$(ui click "Close|Close ad|Skip|Skip ad|Continue to app|X|×"); then adb shell input tap $xy; else adb shell input keyevent KEYCODE_BACK; fi
+    sleep 3; continue
+  fi
   sig=$(ui sig)
   if [ -z "${seen[$sig]:-}" ]; then
     seen[$sig]=1; shots=$((shots + 1))

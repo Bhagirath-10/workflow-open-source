@@ -20,7 +20,11 @@ import xml.etree.ElementTree as ET
 # Never tapped while exploring: money, accounts, destructive or outside actions.
 SKIP = re.compile(r"\b(pay|payment|buy|purchase|subscribe|subscription|upgrade|premium|pro version|checkout|donate|"
                   r"delete|remove|uninstall|erase|reset|log ?out|sign ?out|deactivate|call|dial|sms|report|"
-                  r"rate us|rate app|share|send feedback|learn more|install now|open app|visit site|ad choices)\b", re.I)
+                  r"rate us|rate app|share|send feedback|learn more|install|install now|open|open app|visit|visit site|"
+                  r"shop now|get it|download|ad choices|advertisement|sponsored|why this ad)\b", re.I)
+# Ads are never tapped: links (an ad's text is often its Play Store / web address) and anything inside a
+# web view (AdMob banners and native ads are web views) or an ad view.
+AD_TEXT = re.compile(r"%3[Ff]|https?:|www\.|play\.google|details\?id=|\.com\b|gclid|adurl", re.I)
 
 
 def nodes(path):
@@ -62,6 +66,15 @@ def main():
         print(hashlib.sha1(base.encode()).hexdigest()[:12])
     elif what == "targets":
         seen = set()
+        parent = {c: p for p in ns for c in p}
+        def in_ad(n):
+            c = n
+            while c is not None:
+                cls = c.get("class") or ""; rid = c.get("resource-id") or ""
+                if "WebView" in cls or re.search(r"(^|[:/_])ad(view|_view|s)?([_/]|$)|adView|banner|native_ad", rid, re.I):
+                    return True
+                c = parent.get(c)
+            return False
         for n in ns:
             if n.get("clickable") != "true" or n.get("enabled") == "false":
                 continue
@@ -76,7 +89,7 @@ def main():
                     if t:
                         lab = t[:60]
                         break
-            if SKIP.search(lab) or (x, y) in seen:
+            if SKIP.search(lab) or AD_TEXT.search(lab) or in_ad(n) or (x, y) in seen:
                 continue
             seen.add((x, y))
             print(f"{x} {y}\t{lab}")
