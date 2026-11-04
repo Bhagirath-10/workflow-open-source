@@ -235,6 +235,14 @@ jobs:
             img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -iE 'gapps' | head -1)
             [ -n "$img" ] && break
           done
+          # No Google apps for this Android version: Android 11 instead (OpenGApps, known to work), so the
+          # app that needs them (Alakh Joli) still runs; device.txt shows the version really used.
+          if [ -z "$img" ] && [ "$OS_VER" != 11 ]; then
+            echo "no Google apps image for Android $OS_VER: using Android 11" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "OS_VER=11" >> "$GITHUB_ENV"
+            yes | sudo -E timeout 1200 python3 redroid.py -a 11.0.0 -g 2>&1 | tail -20
+            img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -iE 'gapps' | head -1)
+          fi
           echo "image with Google Play services: ${img:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
           [ -n "$img" ] && echo "IMAGE=$img" >> "$GITHUB_ENV"
 
