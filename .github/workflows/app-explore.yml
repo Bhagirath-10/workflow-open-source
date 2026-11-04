@@ -265,6 +265,10 @@ jobs:
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
           adb shell settings put secure immersive_mode_confirmations confirmed
+          # Google's setup wizard (on images with Google apps) came over the app after each restart
+          # (runs 46/48: "on com.google.android.setupwizard" 148 times): the phone counts as set up.
+          adb shell settings put global device_provisioned 1; adb shell settings put secure user_setup_complete 1
+          adb shell pm disable-user --user 0 com.google.android.setupwizard >/dev/null 2>&1 || true
           adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
           # What the apps (and the ads) see of this phone, for the report: device.txt in the results.
           mkdir -p out
