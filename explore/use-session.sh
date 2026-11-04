@@ -157,8 +157,9 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
     problem "$type not saved: $(ui texts | grep -oE 'Please [a-z ]+\.?|[A-Za-z ]+ is required' | head -2 | tr '\n' ' ')"
     adb shell input keyevent KEYCODE_BACK; sleep 2; return 1
   fi
-  ADDED=$((ADDED + 1)); log "added $type: $cat, $note, $amt, ${wal:-}"; shot "after-add-$type"
-  watch_ad "after saving"
+  ADDED=$((ADDED + 1)); log "added $type: $cat, $note, $amt, ${wal:-}"
+  # Expense Tracker 3.1.0 shows an ad after each income/expense saved (showIncomeExpenseAd): waited for.
+  wait_ad "after saving $type" 10; shot "after-add-$type"
 }
 open_first_txn() {   # opens an entry from the Transactions list (a random one of the first rows)
   go Transaction; dump

@@ -8,7 +8,7 @@ name: App explore - install Play Store apps and explore them
 # new one. It never pays, deletes, logs out, calls, shares or types anything.
 # Runs when this file or explore/ changes (with the default apps), or by hand (Run workflow).
 
-run-name: "${{ inputs.session_minutes != '' && inputs.session_minutes != '0' && 'Ads session' || 'App explore' }}: ${{ inputs.packages || 'both apps' }} (Android ${{ inputs.android || '11' }}, phone ${{ inputs.device || 'auto' }})"
+run-name: "${{ inputs.session_minutes != '' && inputs.session_minutes != '0' && 'Ads session' || 'App explore' }}: ${{ inputs.packages || 'both apps' }}${{ inputs.apk_list != '' && inputs.apk_list != 'drive.txt' && format(' [{0}]', inputs.apk_list) || '' }} (Android ${{ inputs.android || '11' }}, phone ${{ inputs.device || 'auto' }})"
 
 on:
   workflow_dispatch:
@@ -42,6 +42,9 @@ on:
         description: Also download from APKPure/APKCombo (third-party; they have shipped modified apps)
         type: boolean
         default: false
+      apk_list:
+        description: "Which app build: file of Google Drive ids in the private branch explore-apks (drive.txt = the first builds; drive-expense-3.1.0.txt = Expense Tracker 3.1.0 of 4 Nov)"
+        default: "drive.txt"
       repeat:
         description: "When this run ends, start the same run again on a new phone (until explore/REPEAT is deleted or says stop)"
         type: boolean
@@ -145,7 +148,7 @@ jobs:
           # private branch explore-apks (not in this public repo). Each file is named after the app
           # it holds (read from inside it): given/<package>.apks.
           git clone -q --depth 1 --branch explore-apks "https://x-access-token:$GH_TOKEN@github.com/Bhautik-4B/Game-Auto.git" given 2>/dev/null || mkdir -p given
-          for id in $(grep -vE '^\s*(#|$)' given/drive.txt 2>/dev/null); do
+          for id in $(grep -vE '^\s*(#|$)' "given/${{ inputs.apk_list || 'drive.txt' }}" 2>/dev/null); do
             f="drive-$RANDOM.bin"
             curl -sSL -m 900 -o "$f" "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t"
             pkg=$(python3 -I - "$f" $PACKAGES <<'PY'
@@ -381,5 +384,5 @@ jobs:
           gh workflow run app-explore.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
             -f packages="${{ inputs.packages }}" -f minutes="${{ inputs.minutes }}" -f android="${{ inputs.android }}" -f device="${{ inputs.device }}" \
             -f session_minutes="${{ inputs.session_minutes }}" -f gapps="${{ inputs.gapps }}" -f signup="${{ inputs.signup }}" \
-            -f apkpure="${{ inputs.apkpure }}" -f repeat=true
+            -f apkpure="${{ inputs.apkpure }}" -f apk_list="${{ inputs.apk_list }}" -f repeat=true
           echo "Next run started for ${{ inputs.packages }} ($(TZ=Asia/Kolkata date '+%I:%M %p IST'))" | tee -a "$GITHUB_STEP_SUMMARY"
