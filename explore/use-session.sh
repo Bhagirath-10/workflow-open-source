@@ -343,7 +343,8 @@ a_open() {  # a_open <text regex> <what>: tap that text (scrolling a little to f
   local xy i
   for i in 0 1 2; do dump; xy=$(ui textat "$1") && break; adb shell input swipe 540 1600 540 1000 400; sleep 1; done
   [ -n "${xy:-}" ] || { log "  no \"$2\" on the screen"; return 1; }
-  adb shell input tap $xy; sleep 3; watch_ad "$2"
+  adb shell input tap $xy; sleep 3; wait_ad "$2" 6
+  return 0     # no ad is not a failure (run 52: saints and types were never opened because of it)
 }
 a_read_one() {  # on a list of bhajans: open one, read it (scroll slowly), come back
   dump
