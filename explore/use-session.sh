@@ -227,7 +227,10 @@ add_budget() {   # add_budget <name> <amount> <category>
 # showSavingGoalCreate/DeleteAd, showSplashAd) ----------
 screen_log() { dump; log "  screen $1: $(ui texts | cut -c1-220)"; shot "$1"; }
 profile() {   # Home › "Hello, <name>" opens the Profile
-  go Home; tap "Hello,.*" "Profile" >/dev/null || { problem "no Profile (Hello, ...) on Home"; return 1; }
+  go Home; dump
+  # "Hello, <name>" is not marked clickable (tap found nothing, runs 45/47): tapped where its text is
+  local xy; xy=$(ui textat "Hello,.*") || xy=$(ui textat "Here's your financial overview") || { problem "no Profile (Hello, ...) on Home"; return 1; }
+  adb shell input tap $xy; sleep 3
   wait_ad "Profile" 6; screen_log "profile"
 }
 edit_profile() {
