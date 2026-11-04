@@ -43,7 +43,7 @@ watch_ad() {
   return 0
 }
 banners() {   # ad views on the current screen (AdMob banners)
-  dump; local b; b=$(grep -oE 'resource-id="[^"]*(adView|ad_view|banner|native_ad)[^"]*"|text="(Ad|Advertisement|Sponsored)"' "$OUT/ui.xml" | wc -l)
+  dump; local b; b=$(grep -oE 'resource-id="[^"]*(adView|ad_view|banner|native_ad)[^"]*"|text="(Ad|Advertisement|Sponsored)"|class="android.webkit.WebView"' "$OUT/ui.xml" | wc -l)
   [ "$b" -gt 0 ] && { BANNERS=$((BANNERS + b)); log "banner ad(s) on \"$1\": $b"; }
 }
 ensure_app() {    # the app on screen (ads watched first); reopened when it is gone
@@ -182,6 +182,78 @@ look_around() {
   go Transaction; shot "transactions"
   go Wallet; shot "wallets"
 }
+
+# ---------- Alakh Joli: a devotee using the app (reading bhajans, saints, types, the tabs) ----------
+READ=0; SAINTS=0; TYPES=0; TABS=0
+SAINT_NAMES=("ગંગાસતી" "ચારણ કવિ શ્રી ભગુભાઈ" "દેવાયત પંડિત" "નરસિંહ મહેતા" "પ્રેમાનંદ સ્વામી" "મીરાબાઈ" "લીરલ' બાઈ" "દયાનંદ સરસ્વતી")
+TYPE_NAMES=("આત્મજ્ઞાન ભજન" "કૃષ્ણ ભક્તિ ભજન" "ભક્તિ ભજન" "ભજન-આરતી" "યોગ ભજન" "રામ ભક્તિ ભજન" "લોક ભજન" "શિવ ભક્તિ ભજન" "ઉપદેશ ભજન" "પ્રાર્થના")
+a_tab() {   # a bottom tab: ઘર સાખી AI રિફર નોટેશન
+  ensure_app "$1"; dump; local xy
+  xy=$(ui textat "$1") || { adb shell input keyevent KEYCODE_BACK; sleep 2; dump; xy=$(ui textat "$1"); } || { problem "no tab $1"; return 1; }
+  adb shell input tap $xy; sleep 3; watch_ad "$1"; banners "$1"
+}
+a_back() { adb shell input keyevent KEYCODE_BACK; sleep 2; }
+a_open() {  # a_open <text regex> <what>: tap that text (scrolling a little to find it)
+  local xy i
+  for i in 0 1 2; do dump; xy=$(ui textat "$1") && break; adb shell input swipe 540 1600 540 1000 400; sleep 1; done
+  [ -n "${xy:-}" ] || { log "  no \"$2\" on the screen"; return 1; }
+  adb shell input tap $xy; sleep 3; watch_ad "$2"
+}
+a_read_one() {  # on a list of bhajans: open one, read it (scroll slowly), come back
+  dump
+  local rows n xy title
+  rows=$(ui targets | grep -vE "ઘર|સાખી|^.*\bAI\b|રિફર|નોટેશન|મેનુ|Menu|શોધો|\[ImageView\]|\[Button\]|\[EditText\]")
+  n=$(echo "$rows" | grep -c . || true)
+  [ "$n" -gt 0 ] || { log "  no bhajan in this list: $(ui texts | cut -c1-120)"; shot "empty-list"; return 1; }
+  pick=$(echo "$rows" | sed -n "$(( RANDOM % n + 1 ))p"); xy=$(echo "$pick" | cut -f1); title=$(echo "$pick" | cut -f2)
+  adb shell input tap $xy; sleep 3; watch_ad "bhajan"
+  dump; log "  reading: $title ($(ui texts | cut -c1-80))"; shot "bhajan"
+  local k; for k in 1 2 3; do sleep $(( RANDOM % 15 + 10 )); adb shell input swipe 540 1600 540 900 600; done   # reading, scrolling down
+  READ=$((READ + 1)); a_back
+}
+a_saint() {
+  a_tab "ઘર" || return 1
+  a_open "બધા જુઓ" "all saints" || return 1                      # the first "see all" is the saints
+  local s=${SAINT_NAMES[$((RANDOM % ${#SAINT_NAMES[@]}))]}
+  a_open "$s" "$s" || { a_back; return 1; }
+  SAINTS=$((SAINTS + 1)); dump; log "saint: $s: $(ui texts | cut -c1-150)"; shot "saint"
+  a_read_one; a_back; a_back
+}
+a_type() {
+  a_tab "ઘર" || return 1
+  local t=${TYPE_NAMES[$((RANDOM % ${#TYPE_NAMES[@]}))]}
+  a_open "$t" "$t" || { dump; xy=$(ui allat "બધા જુઓ" | sed -n 2p) && adb shell input tap $xy && sleep 3 && a_open "$t" "$t"; } || return 1
+  TYPES=$((TYPES + 1)); dump; log "type: $t: $(ui texts | cut -c1-150)"; shot "type"
+  a_read_one; a_back
+}
+a_new() {   # the newly added bhajans on Home
+  a_tab "ઘર" || return 1
+  adb shell input swipe 540 1600 540 800 500; sleep 2
+  dump; xy=$(ui allat "બધા જુઓ" | tail -1) && { adb shell input tap $xy; sleep 3; shot "new-bhajans"; a_read_one; a_back; }
+}
+a_tabs() {  # the other tabs and the menu, as a user looks around
+  local t; for t in "સાખી" "AI" "રિફર" "નોટેશન"; do a_tab "$t" && { TABS=$((TABS + 1)); dump; log "tab $t: $(ui texts | cut -c1-150)"; shot "tab"; }; done
+  a_tab "ઘર"; a_open "મેનુ" "menu" && { shot "menu"; a_open "પ્રોફાઇલ" "profile" && { shot "profile"; a_back; }; a_open "મેનુ" "menu"; a_open "વિશેષ વિડિયો" "special videos" && { shot "special-videos"; a_back; }; }
+}
+alakh_main() {
+  log "## session: $MIN minutes of real use of $PKG (a devotee reading bhajans)"
+  launch; watch_ad "start"
+  end=$(( $(date +%s) + MIN * 60 )); round=0
+  while [ "$(date +%s)" -lt "$end" ]; do
+    round=$((round + 1)); log "-- round $round"
+    a_saint; a_type
+    [ $((round % 2)) = 0 ] && a_new
+    [ $((round % 3)) = 0 ] && a_tabs
+    log "so far: bhajans read $READ, saints opened $SAINTS, types opened $TYPES, tabs looked at $TABS, full-screen ads $ADS, banners $BANNERS, problems $PROBLEMS"
+  done
+  a_tab "ઘર"; shot "home-final"
+  {
+    echo "## session summary ($MIN minutes, $round rounds)"
+    echo "bhajans read: $READ, saints opened: $SAINTS, bhajan types opened: $TYPES, tabs looked at: $TABS"
+    echo "full-screen ads watched: $ADS (see ads.csv), banner ads seen: $BANNERS, problems: $PROBLEMS"
+  } | tee -a "$NOTES" > "$OUT/summary.txt"
+}
+if [ "$PKG" = com.mechodal.alakhjoli ]; then alakh_main; exit 0; fi
 
 log "## session: $MIN minutes of real use of $PKG on its screens"
 launch; skip_ad
