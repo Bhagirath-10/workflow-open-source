@@ -44,6 +44,8 @@ skip_ad() {
     timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity || return 0
     # The ad closes with its "Continue to app" / Close button (Back does nothing on it)
     dump
+    # every startup ad is noted too (ad analysis): its words and a screenshot
+    echo "$(TZ=Asia/Kolkata date '+%I:%M:%S %p'),$TAG,$(ui texts | cut -c1-200 | tr ',' ' ')" >> "$OUT/startup-ads.csv"; shot "startup-ad"
     if xy=$(ui click "Continue to app|Close|Close ad|Skip|Skip ad|X"); then say "  $TAG: startup ad, tap its close button ($xy)"; adb shell input tap $xy
     else say "  $TAG: startup ad, Back"; adb shell input keyevent KEYCODE_BACK; fi
     sleep 3

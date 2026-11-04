@@ -6,6 +6,11 @@
 # with the time in notes.txt; problems are logged as PROBLEM and the session goes on.
 # Ads: every full-screen ad is watched until it ends or offers its close button, screenshotted
 # and counted (ads.csv); banners are counted per screen. Ads are never tapped (only their close).
+# Ad analysis (owner, 4 Nov: "main focus is ads, which type and how many, used like a normal
+# human"): the session also does what the app's own code shows ads after (opening the app again
+# after a while, Edit Profile, a wallet / budget / saving goal made, edited and deleted), waits for
+# the ad like a person would, and keeps the phone's ad log (ads-logcat.txt: every ad the app asked
+# for, loaded or failed to get) for the report (ads-summary.txt).
 #
 #   use-session.sh <package> <out-dir> <minutes>
 set -uo pipefail
@@ -20,6 +25,27 @@ ADS=0; BANNERS=0; PROBLEMS=0; ADDED=0; EDITED=0; DELETED=0; WALLETS=0; BUDGETS=0
 echo "time,type,screen,seconds,advertiser/text" > "$OUT/ads.csv"
 
 top() { timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-zA-Z0-9_.]+/[^ }]+'; }
+# The phone's ad log for the whole session: Google Mobile Ads ("Ads") and the app's own messages.
+timeout 10 adb logcat -c 2>/dev/null
+( exec timeout $(( MIN * 60 + 1500 )) adb logcat -v time Ads:V flutter:V '*:S' > "$OUT/ads-logcat.txt" 2>/dev/null ) &
+LOGCAT=$!; trap 'kill $LOGCAT 2>/dev/null' EXIT
+REOPENS=0; PROFILE=0; WCYCLE=0; BCYCLE=0; GCYCLE=0
+pause() { sleep $(( RANDOM % ($2 - $1 + 1) + $1 )); }       # a person's pause: pause <min s> <max s>
+wait_ad() {   # wait_ad <where> [seconds]: an ad may come a few seconds after the action, as for a person
+  local i; for i in $(seq 1 $(( ${2:-10} / 2 ))); do watch_ad "$1" && return 0; sleep 2; done; return 1
+}
+reopen() {    # reopen cold|warm: leave the app and come back later, as people do
+  REOPENS=$((REOPENS + 1))
+  if [ "$1" = cold ]; then
+    log "user closes the app (swiped away) and opens it again later"; adb shell am force-stop "$PKG"; pause 30 90
+  else
+    log "user goes to the phone's home screen and comes back later"; adb shell input keyevent KEYCODE_HOME; pause 60 150
+  fi
+  local act; act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
+  timeout 30 adb shell am start -n "$act" >/dev/null 2>&1; sleep 3
+  wait_ad "app opened again ($1)" 16 || log "  no ad when the app opened again ($1)"
+  shot "reopen-$1"
+}
 # A full-screen ad on top: watch it to the end, screenshot, count, then its close button (never the ad).
 watch_ad() {
   local where=$1 t0 t txt kind
@@ -28,8 +54,9 @@ watch_ad() {
   txt=$(ui texts | cut -c1-160 | tr ',' ' ')
   kind="full-screen"; echo "$txt" | grep -qiE "reward" && kind="rewarded"
   echo "$txt" | grep -qiE "video|sec|seconds|skip in" && kind="$kind video"
-  shot "ad-$ADS"
-  for t in $(seq 1 30); do                          # up to ~60 s: wait for the end or a close button
+  shot "ad-$ADS"; local act; act=$(top)
+  for t in $(seq 1 30); do
+    [ "$t" = 5 ] && shot "ad-$ADS-later"                          # up to ~60 s: wait for the end or a close button
     top | grep -q AdActivity || break
     dump
     if ui click "Close|Close ad|Skip|Skip ad|Skip video|Continue to app|X|×" >/dev/null && [ $(( $(date +%s) - t0 )) -ge 6 ]; then
@@ -38,13 +65,25 @@ watch_ad() {
     sleep 2
   done
   top | grep -q AdActivity && { adb shell input keyevent KEYCODE_BACK; sleep 2; }
-  echo "$(ts),$kind,$where,$(( $(date +%s) - t0 )),$txt" >> "$OUT/ads.csv"
+  echo "$(ts),$kind,$where,$(( $(date +%s) - t0 )),$txt [$act]" >> "$OUT/ads.csv"
   log "AD #$ADS ($kind) on \"$where\", watched $(( $(date +%s) - t0 )) s: $txt"
   return 0
 }
 banners() {   # ad views on the current screen (AdMob banners)
   dump; local b; b=$(grep -oE 'resource-id="[^"]*(adView|ad_view|banner|native_ad)[^"]*"|text="(Ad|Advertisement|Sponsored)"|class="android.webkit.WebView"' "$OUT/ui.xml" | wc -l)
-  [ "$b" -gt 0 ] && { BANNERS=$((BANNERS + b)); log "banner ad(s) on \"$1\": $b"; }
+  [ "$b" -gt 0 ] && { BANNERS=$((BANNERS + b)); log "banner ad(s) on \"$1\": $b"; shot "banner"
+    echo "$(ts),banner,$1,0,$(python3 -I - "$OUT/ui.xml" <<'PY2'
+import sys, xml.etree.ElementTree as ET
+out = []
+def walk(n, inad):
+    inad = inad or n.get("class") == "android.webkit.WebView"
+    t = (n.get("text") or n.get("content-desc") or "").strip()
+    if inad and t: out.append(t)
+    for c in n: walk(c, inad)
+walk(ET.parse(sys.argv[1]).getroot(), False)
+print(" ".join(out)[:160].replace(",", " "))
+PY2
+)" >> "$OUT/ads.csv"; }
 }
 ensure_app() {    # the app on screen (ads watched first); reopened when it is gone
   local i
@@ -176,6 +215,96 @@ add_budget() {   # add_budget <name> <amount> <category>
   tap "Create Budget|Save Budget|Save|Add Budget|Create" "save budget" >/dev/null && { BUDGETS=$((BUDGETS + 1)); log "added budget $1 ($2, $3)"; shot "after-budget"; return 0; }
   problem "budget $1 not saved"; adb shell input keyevent KEYCODE_BACK
 }
+# ---------- Expense Tracker: the actions its code shows ads after (admob_service.dart:
+# showEditProfileAd, showWalletCreate/Edit/DeleteAd, showBudgetAdd/Edit/DeleteAd,
+# showSavingGoalCreate/DeleteAd, showSplashAd) ----------
+screen_log() { dump; log "  screen $1: $(ui texts | cut -c1-220)"; shot "$1"; }
+profile() {   # Home › "Hello, <name>" opens the Profile
+  go Home; tap "Hello,.*" "Profile" >/dev/null || { problem "no Profile (Hello, ...) on Home"; return 1; }
+  wait_ad "Profile" 6; screen_log "profile"
+}
+edit_profile() {
+  profile || return 1
+  tap "Edit Profile|Edit|Expense Tester" "Edit Profile" >/dev/null || { problem "no Edit Profile on the Profile"; go Home; return 1; }
+  PROFILE=$((PROFILE + 1)); wait_ad "Edit Profile" 12; screen_log "edit-profile"
+  if dump && ui click "Save|Update|Save Changes|Update Profile" >/dev/null; then
+    fill "Phone.*|Mobile.*" "9409005692" "phone" >/dev/null 2>&1
+    tap "Save|Update|Save Changes|Update Profile" "Save profile" >/dev/null; wait_ad "Edit Profile saved" 12; screen_log "after-edit-profile"
+  fi
+  adb shell input keyevent KEYCODE_BACK; sleep 2; go Home
+}
+open_named() {   # open_named <tab> <name>: tap that item (scrolling to find it)
+  local i xy
+  [ "$1" = Profile ] || go "$1"
+  for i in 0 1 2 3; do dump; xy=$(ui textat "$2") && break; adb shell input swipe 540 1600 540 1000 400; sleep 1; done
+  [ -n "${xy:-}" ] || { log "  no \"$2\" on $1: $(ui texts | cut -c1-200)"; return 1; }
+  adb shell input tap $xy; sleep 3; screen_log "opened-$(echo "$2" | tr ' ' '-')"
+}
+do_action() {   # do_action <Edit|Delete>: the item's own button, else its ⋮ menu
+  local xy; dump
+  if xy=$(ui textat "$1|$1 .*|.*$1"); then adb shell input tap $xy; sleep 3; else menu_item "$1" || return 1; fi
+  if [ "$1" = Delete ]; then dump; xy=$(ui textat "Delete|Yes|Confirm|OK|Yes, Delete") && { adb shell input tap $xy; sleep 3; }; fi
+  return 0
+}
+change_amount() {   # change_amount <label regex> <new amount>
+  local xy; dump; xy=$(ui fieldbelow "$1") || return 1
+  adb shell input tap $xy; sleep 1; adb shell input keyevent KEYCODE_MOVE_END
+  for _ in $(seq 1 10); do adb shell input keyevent KEYCODE_DEL; done
+  adb shell input text "$2"; adb shell input keyevent KEYCODE_BACK; sleep 1
+}
+wallet_cycle() {   # a wallet made, edited, deleted (a trip wallet)
+  local w="Trip Wallet $1"; WCYCLE=$((WCYCLE + 1))
+  add_wallet "$w" 3000 && wait_ad "wallet created" 12
+  open_named Wallet "$w" || return 1; wait_ad "wallet opened" 6
+  if do_action Edit; then
+    change_amount "Initial [Bb]alance.*|Balance.*|Amount.*" 3500 && tap "Save|Update|Update Wallet|Save Changes" "save wallet" >/dev/null &&
+      { log "edited wallet $w"; wait_ad "wallet edited" 12; screen_log "after-wallet-edit"; }
+  else problem "no Edit for wallet $w"; adb shell input keyevent KEYCODE_BACK; sleep 2; fi
+  open_named Wallet "$w" || return 1
+  do_action Delete && { log "deleted wallet $w"; wait_ad "wallet deleted" 12; screen_log "after-wallet-delete"; } || { problem "no Delete for wallet $w"; adb shell input keyevent KEYCODE_BACK; }
+}
+budget_cycle() {   # a budget made, edited, deleted
+  local b="Weekend Fun $1"; BCYCLE=$((BCYCLE + 1))
+  add_budget "$b" 1500 "Entertainment" && wait_ad "budget created" 12
+  open_named Home "$b" || return 1; wait_ad "budget opened" 6
+  if do_action Edit; then
+    change_amount "Budget Amount.*" 1800 && { adb shell input swipe 540 1600 540 600 400; sleep 1; } &&
+      tap "Update Budget|Save Budget|Save|Update" "save budget" >/dev/null && { log "edited budget $b"; wait_ad "budget edited" 12; screen_log "after-budget-edit"; }
+  else problem "no Edit for budget $b"; adb shell input keyevent KEYCODE_BACK; sleep 2; fi
+  open_named Home "$b" || return 1
+  do_action Delete && { log "deleted budget $b"; wait_ad "budget deleted" 12; screen_log "after-budget-delete"; } || { problem "no Delete for budget $b"; adb shell input keyevent KEYCODE_BACK; }
+}
+goal_cycle() {    # Profile › Saving Goal: a goal made, then deleted
+  local g="New Phone $1"; GCYCLE=$((GCYCLE + 1))
+  profile || return 1
+  tap "Saving Goal" "Saving Goal" >/dev/null || { problem "no Saving Goal on the Profile"; return 1; }
+  wait_ad "Saving Goal" 6; screen_log "saving-goals"
+  tap "Add Goal|Create Goal|Add Saving Goal|New Goal|Add New Goal|Create New Goal|\\+|Add" "Add goal" >/dev/null || { dump; xy=$(ui click "\\+") && adb shell input tap $xy && sleep 3; }
+  screen_log "goal-form"
+  fill "Goal Name.*|Goal Title.*|Name.*|Title.*" "$g" "goal name" || { problem "no goal form"; adb shell input keyevent KEYCODE_BACK; return 1; }
+  fill "Target Amount.*|Target.*|Goal Amount.*|Amount.*" "20000" "target amount"
+  dump; ui textat "Select Wallet|Wallet" >/dev/null && pick "Wallet" "Cash Wallet" >/dev/null
+  adb shell input swipe 540 1600 540 600 400; sleep 1; screen_log "goal-filled"
+  tap "Create Goal|Save Goal|Add Goal|Create|Save" "save goal" >/dev/null && { log "added saving goal $g"; wait_ad "saving goal created" 12; screen_log "after-goal"; }
+  open_named Profile "$g" || return 1
+  do_action Delete && { log "deleted saving goal $g"; wait_ad "saving goal deleted" 12; screen_log "after-goal-delete"; } || { problem "no Delete for goal $g"; adb shell input keyevent KEYCODE_BACK; }
+  adb shell input keyevent KEYCODE_BACK; sleep 2
+}
+ads_summary() {   # the ad report of this session (ads-summary.txt)
+  {
+    echo "## ads in this session ($PKG, $MIN minutes)"
+    echo "full-screen ads watched: $ADS, banner ads seen: $BANNERS, app opened again: $REOPENS times"
+    echo "startup ads during sign-up/first start: $( [ -f "$OUT/startup-ads.csv" ] && wc -l < "$OUT/startup-ads.csv" || echo 0)"
+    echo "-- full-screen ads by where they came:"; awk -F, 'NR>1 && $2!="banner"{print "   " $3 " (" $2 ")"}' "$OUT/ads.csv" | sort | uniq -c | sort -rn
+    echo "-- banners by screen:"; awk -F, 'NR>1 && $2=="banner"{print "   " $3}' "$OUT/ads.csv" | sort | uniq -c | sort -rn
+    echo "-- the phone's ad log (ads-logcat.txt):"
+    echo "   ad requests (Ads): $(grep -c 'Ads.*\(request\|Requesting\)' "$OUT/ads-logcat.txt" 2>/dev/null)"
+    echo "   failed to load (no ad given): $(grep -ciE 'failed to load|onAdFailedToLoad|No fill' "$OUT/ads-logcat.txt" 2>/dev/null)"
+    echo "   error codes: $(grep -oE 'failed to load *: *[0-9]+|[Ee]rror code:? *[0-9]+|code: *[0-9]+' "$OUT/ads-logcat.txt" 2>/dev/null | sort | uniq -c | tr '\n' ';')"
+    echo "   app's own ad messages:"; grep -E 'flutter' "$OUT/ads-logcat.txt" 2>/dev/null | grep -iE 'ad|admob' | sed -E 's/^[0-9-]+ [0-9:.]+ //' | cut -c1-160 | sort | uniq -c | sort -rn | head -25
+  } > "$OUT/ads-summary.txt" 2>/dev/null
+  cat "$OUT/ads-summary.txt" >> "$NOTES"
+}
 look_around() {
   go Home; shot "home"
   go Analytics; shot "analytics"; tap "Income" "Income tab" >/dev/null && shot "analytics-income"; tap "Expenses" "Expenses tab" >/dev/null
@@ -237,26 +366,29 @@ a_tabs() {  # the other tabs and the menu, as a user looks around
 }
 alakh_main() {
   log "## session: $MIN minutes of real use of $PKG (a devotee reading bhajans)"
-  launch; watch_ad "start"
+  launch; wait_ad "app start" 12
   end=$(( $(date +%s) + MIN * 60 )); round=0
   while [ "$(date +%s)" -lt "$end" ]; do
     round=$((round + 1)); log "-- round $round"
     a_saint; a_type
     [ $((round % 2)) = 0 ] && a_new
     [ $((round % 3)) = 0 ] && a_tabs
+    if [ $((round % 3)) = 0 ]; then reopen cold; else reopen warm; fi     # leave the app and come back (app open ads)
+    pause 20 60
     log "so far: bhajans read $READ, saints opened $SAINTS, types opened $TYPES, tabs looked at $TABS, full-screen ads $ADS, banners $BANNERS, problems $PROBLEMS"
   done
   a_tab "ઘર"; shot "home-final"
   {
     echo "## session summary ($MIN minutes, $round rounds)"
     echo "bhajans read: $READ, saints opened: $SAINTS, bhajan types opened: $TYPES, tabs looked at: $TABS"
-    echo "full-screen ads watched: $ADS (see ads.csv), banner ads seen: $BANNERS, problems: $PROBLEMS"
+    echo "full-screen ads watched: $ADS (see ads.csv), banner ads seen: $BANNERS, app opened again: $REOPENS, problems: $PROBLEMS"
   } | tee -a "$NOTES" > "$OUT/summary.txt"
+  ads_summary
 }
 if [ "$PKG" = com.mechodal.alakhjoli ]; then alakh_main; exit 0; fi
 
 log "## session: $MIN minutes of real use of $PKG on its screens"
-launch; skip_ad
+launch; wait_ad "app start" 12
 dump; ui click "Confirm" >/dev/null && { tap "Live Mode" "Live Mode"; tap "Confirm" "Confirm"; }
 add_wallet "Cash Wallet" 5000; add_wallet "HDFC Bank" 25000; add_wallet "Paytm Wallet" 1200
 add_txn Income "Salary" "Salary" 30000
@@ -265,20 +397,22 @@ while [ "$(date +%s)" -lt "$end" ]; do
   round=$((round + 1)); log "-- round $round"
   e=${CATS_EXP[$((ie % ${#CATS_EXP[@]}))]}; ie=$((ie + 1))
   add_txn Expense "${e%%:*}" "$(echo "$e" | cut -d: -f2)" "${e##*:}"
-  e=${CATS_EXP[$((ie % ${#CATS_EXP[@]}))]}; ie=$((ie + 1))
-  add_txn Expense "${e%%:*}" "$(echo "$e" | cut -d: -f2)" "${e##*:}"
   [ $((round % 3)) = 0 ] && { i=${CATS_INC[$((ii % ${#CATS_INC[@]}))]}; ii=$((ii + 1)); add_txn Income "${i%%:*}" "${i%%:*}" "${i##*:}"; }
+  case $((round % 4)) in                       # one of the actions the app shows ads after
+    1) edit_profile;; 2) wallet_cycle $round;; 3) budget_cycle $round;; 0) goal_cycle $round;;
+  esac
   [ $((round % 2)) = 0 ] && edit_txn
-  [ $((round % 4)) = 0 ] && delete_txn
-  [ $round = 3 ] && add_budget "Monthly Food" 3000 "Food & Dining"
-  [ $round = 6 ] && add_budget "Travel" 2000 "Travel & Transport"
-  [ $round = 8 ] && add_wallet "Savings Account" 50000
+  [ $((round % 5)) = 0 ] && delete_txn
   look_around
-  log "so far: added $ADDED, edited $EDITED, deleted $DELETED, wallets $WALLETS, budgets $BUDGETS, full-screen ads $ADS, banners $BANNERS, problems $PROBLEMS"
+  if [ $((round % 3)) = 0 ]; then reopen cold; else reopen warm; fi     # leave the app and come back (app open ads)
+  pause 20 60
+  log "so far: added $ADDED, edited $EDITED, deleted $DELETED, profile $PROFILE, wallet/budget/goal cycles $WCYCLE/$BCYCLE/$GCYCLE, reopened $REOPENS, full-screen ads $ADS, banners $BANNERS, problems $PROBLEMS"
 done
 go Home; shot "home-final"; go Analytics; shot "analytics-final"; go Transaction; shot "transactions-final"
 {
   echo "## session summary ($MIN minutes, $round rounds)"
   echo "entries added: $ADDED, edited: $EDITED, deleted: $DELETED, wallets added: $WALLETS, budgets added: $BUDGETS"
+  echo "edit profile: $PROFILE, wallet / budget / saving goal made-edited-deleted: $WCYCLE / $BCYCLE / $GCYCLE, app opened again: $REOPENS"
   echo "full-screen ads watched: $ADS (see ads.csv), banner ads seen: $BANNERS, problems: $PROBLEMS"
 } | tee -a "$NOTES" > "$OUT/summary.txt"
+ads_summary
