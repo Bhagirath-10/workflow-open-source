@@ -44,7 +44,7 @@ timeout 30 adb shell am start -W -n "$act" 2>&1 | tr -d '\r' | sed 's/^/  am sta
 for t in 1 3 6 10; do
   sleep $t
   timeout 15 adb exec-out screencap -p > "$OUT/000-first-launch-${t}s.png"
-  say "  after ${t}s: process $(adb shell pidof "$PKG" | tr -d '\r' | grep . || echo 'not running'), on screen: $(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-z0-9_.]+/[^ }]+')"
+  say "  after ${t}s: process $(adb shell pidof "$PKG" | tr -d '\r' | grep . || echo 'not running'), on screen: $(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -oE '[a-z0-9_.]+/[^ }]+')"
 done
 timeout 30 adb logcat -d -v threadtime 2>/dev/null | grep -vE " (Monkey|AndroidRuntime|app_process|uiautomator)\b" > "$OUT/first-launch-log.txt"
 grep -E "FATAL EXCEPTION|Process: $PKG|Caused by|UnsatisfiedLinkError|dlopen|couldn't find|libflutter|libapp|pairip|LicenseActivity|Force finishing|has died|Killing .*$PKG|ActivityManager: Start proc .*$PKG" "$OUT/first-launch-log.txt" | head -40 | sed 's/^/  log: /' >> "$NOTES"
@@ -75,7 +75,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
   fi
   away=0
   # A full-screen ad: never tapped. Wait for its close button (or Back), close it, go on.
-  if timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity; then
+  if timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -q AdActivity; then
     ADS_SEEN=$(( ${ADS_SEEN:-0} + 1 )); shots=$((shots + 1)); adb exec-out screencap -p > "$OUT/$(printf %03d $shots)-ad.png"
     say "step $step: full-screen AD #$ADS_SEEN (not tapped): $(ui texts | cut -c1-160)"
     sleep 6; dump
@@ -85,7 +85,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
   sig=$(ui sig)
   if [ -z "${seen[$sig]:-}" ]; then
     seen[$sig]=1; shots=$((shots + 1))
-    act=$(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE "$PKG/[^ }]+" )
+    act=$(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -oE "$PKG/[^ }]+" )
     name="$(printf %03d $shots)-screen-$sig"
     adb exec-out screencap -p > "$OUT/$name.png"
     say "step $step: NEW SCREEN $name ($act)"

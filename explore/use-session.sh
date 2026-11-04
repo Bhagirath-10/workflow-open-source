@@ -24,7 +24,7 @@ problem() { PROBLEMS=$((PROBLEMS + 1)); log "PROBLEM: $*"; shot "problem"; }
 ADS=0; BANNERS=0; PROBLEMS=0; ADDED=0; EDITED=0; DELETED=0; WALLETS=0; BUDGETS=0
 echo "time,type,screen,seconds,advertiser/text" > "$OUT/ads.csv"
 
-top() { timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -oE '[a-zA-Z0-9_.]+/[^ }]+'; }
+top() { timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -oE '[a-zA-Z0-9_.]+/[^ }]+'; }
 # The phone's ad log for the whole session: Google Mobile Ads ("Ads") and the app's own messages.
 timeout 10 adb logcat -c 2>/dev/null
 ( exec timeout $(( MIN * 60 + 1500 )) adb logcat -v time Ads:V flutter:V '*:S' > "$OUT/ads-logcat.txt" 2>/dev/null ) &

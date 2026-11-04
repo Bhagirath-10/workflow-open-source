@@ -41,7 +41,7 @@ launch() {
 skip_ad() {
   local i
   for i in 1 2 3; do
-    timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q AdActivity || return 0
+    timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -q AdActivity || return 0
     # The ad closes with its "Continue to app" / Close button (Back does nothing on it)
     dump
     # every startup ad is noted too (ad analysis): its words and a screenshot
