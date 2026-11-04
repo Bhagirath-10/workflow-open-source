@@ -15,10 +15,23 @@ dump() {
   return 1
 }
 shot() { N=$((N + 1)); timeout 15 adb exec-out screencap -p > "$OUT/$(printf '%s-%04d' "$TAG" "$N")-$1.png"; }
-# tap <regex> <what>: the lowest clickable thing with that text (the button, not a title)
+# Typed like a person (owner, 4 Nov: "like a real human"): letter by letter with small random pauses
+# (long texts in short pieces), not pasted in one go.
+human_type() {
+  local t=$1 i c
+  if [ ${#t} -gt 40 ]; then adb shell input text "$(printf '%s' "$t" | sed 's/ /%s/g')"; return; fi
+  for (( i = 0; i < ${#t}; i++ )); do
+    c=${t:i:1}; [ "$c" = " " ] && c="%s"
+    if [ "$c" = "'" ]; then adb shell input text "\\'"; else adb shell input text "'$c'"; fi   # quoted for the phone's shell
+    sleep 0.$(( RANDOM % 4 + 1 ))
+  done
+}
+# tap <regex> <what>: the lowest clickable thing with that text (the button, not a title); a person
+# looks for a moment before tapping, and taps a few pixels off the exact centre.
 tap() {
   local xy; dump; xy=$(ui click "$1") || { say "  $TAG: no \"$2\" on the screen: $(ui texts | cut -c1-300)"; return 1; }
-  say "  $TAG: tap $2 ($xy)"; adb shell input tap $xy; sleep 4
+  sleep $(( RANDOM % 2 + 1 )); set -- "$1" "$2" ${xy% *} ${xy#* }
+  say "  $TAG: tap $2 ($xy)"; adb shell input tap $(( $3 + RANDOM % 9 - 4 )) $(( $4 + RANDOM % 9 - 4 )); sleep 4
 }
 # fill <label regex> <text> <what>: types into the field under that label (scrolls up to 3 times)
 fill() {
@@ -29,7 +42,7 @@ fill() {
   done
   [ -n "${xy:-}" ] || { say "  $TAG: no field \"$3\": $(ui texts | cut -c1-300)"; return 1; }
   adb shell input tap $xy; sleep 1
-  adb shell input text "$(printf '%s' "$2" | sed 's/ /%s/g')"; sleep 1
+  human_type "$2"; sleep 1
   adb shell input keyevent KEYCODE_BACK  # hide the keyboard, so the fields under it can be seen
   say "  $TAG: typed $3"; sleep 1
 }
