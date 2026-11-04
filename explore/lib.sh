@@ -59,8 +59,22 @@ skip_ad() {
     dump
     # every startup ad is noted too (ad analysis): its words and a screenshot
     echo "$(TZ=Asia/Kolkata date '+%I:%M:%S %p'),$TAG,$(ui texts | cut -c1-200 | tr ',' ' ')" >> "$OUT/startup-ads.csv"; shot "startup-ad"
-    if xy=$(ui click "Continue to app|Close|Close ad|Skip|Skip ad|X"); then say "  $TAG: startup ad, tap its close button ($xy)"; adb shell input tap $xy
+    if xy=$(ui adclose); then say "  $TAG: startup ad, tap its close button ($xy)"; adb shell input tap $xy
     else say "  $TAG: startup ad, Back"; adb shell input keyevent KEYCODE_BACK; fi
     sleep 3
+  done
+}
+# After closing an ad: if a store or browser came up instead of the app, the ad was opened by mistake.
+# Noted (AD-CLICK in notes and ad-clicks.txt) and closed with Back, so it is never left open.
+ad_click_check() {
+  local top i
+  for i in 1 2 3; do
+    top=$(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -oE '[a-zA-Z0-9_.]+/[^ }]+')
+    case "$top" in
+      com.android.vending/*|com.android.chrome/*|*browser*|*webview*)
+        [ "$i" = 1 ] && { say "  ${TAG:-explore}: AD-CLICK: $top came up after closing an ad ($1); closed with Back"; echo "$(TZ=Asia/Kolkata date '+%I:%M:%S %p'),$1,$top" >> "$OUT/ad-clicks.txt"; }
+        adb shell input keyevent KEYCODE_BACK; sleep 2;;
+      *) return 0;;
+    esac
   done
 }

@@ -11,6 +11,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$OUT/tried"; NOTES="$OUT/notes.txt"
 say() { echo "$*" >> "$NOTES"; }
 ui() { python3 -I "$HERE/ui_nodes.py" "$OUT/ui.xml" "$@" 2>/dev/null; }
+eval "$(sed -n '/^ad_click_check()/,/^}/p' "$HERE/lib.sh")"   # shared: an ad opened by mistake is noted and closed
 dump() {
   local i
   for i in 1 2 3; do
@@ -79,7 +80,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
     ADS_SEEN=$(( ${ADS_SEEN:-0} + 1 )); shots=$((shots + 1)); adb exec-out screencap -p > "$OUT/$(printf %03d $shots)-ad.png"
     say "step $step: full-screen AD #$ADS_SEEN (not tapped): $(ui texts | cut -c1-160)"
     sleep 6; dump
-    if xy=$(ui click "Close|Close ad|Skip|Skip ad|Continue to app|X|×"); then adb shell input tap $xy; else adb shell input keyevent KEYCODE_BACK; fi
+    if xy=$(ui adclose); then adb shell input tap $xy; else adb shell input keyevent KEYCODE_BACK; fi; sleep 2; ad_click_check "explore"
     sleep 3; continue
   fi
   sig=$(ui sig)

@@ -18,7 +18,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 # Never tapped while exploring: money, accounts, destructive or outside actions.
-SKIP = re.compile(r"\b(pay|payment|buy|purchase|subscribe|subscription|upgrade|premium|pro version|checkout|donate|"
+SKIP = re.compile(r"\b(continue with google|sign in with google|sign in|google|pay|payment|buy|purchase|subscribe|subscription|upgrade|premium|pro version|checkout|donate|"
                   r"delete|remove|uninstall|erase|reset|log ?out|sign ?out|deactivate|call|dial|sms|report|"
                   r"rate us|rate app|share|send feedback|learn more|install|install now|open|open app|visit|visit site|"
                   r"shop now|get it|download|ad choices|advertisement|sponsored|why this ad)\b", re.I)
@@ -108,6 +108,24 @@ def main():
             sys.exit(1)
         x, y, _ = centre(max(hits, key=lambda h: centre(h)[1]))
         print(x, y)
+    elif what == "adclose":
+        # The close of a full-screen ad, never the ad itself: only a node whose OWN text is the close
+        # word ("Continue to app", "Close", "Close ad", "X", "×"), small, at the very top of the screen.
+        # (A climb to the clickable parent tapped the middle of a TikTok ad twice, run 56.)
+        rx = re.compile(r"Continue to app|Close|Close ad|X|×", re.I)
+        H = max((centre(n)[1] * 2 for n in ns[:1]), default=2400) or 2400
+        for n in ns:
+            b = re.findall(r"\d+", n.get("bounds") or "")
+            if len(b) == 4 and int(b[3]) > H * 0.9: H = int(b[3])
+        hits = []
+        for n in ns:
+            t = (n.get("text") or n.get("content-desc") or "").strip()
+            x, y, area = centre(n)
+            if t and rx.fullmatch(t) and 0 < area < 0.05 * 1080 * H and y < H * 0.12:
+                hits.append((x, y))
+        if not hits:
+            sys.exit(1)
+        print(*min(hits, key=lambda c: c[1]))
     elif what == "textat":
         rx = re.compile(sys.argv[3], re.I | re.S)
         hits = [n for n in ns if rx.fullmatch((n.get("text") or n.get("content-desc") or "").strip())]

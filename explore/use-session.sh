@@ -62,14 +62,15 @@ watch_ad() {
     [ "$t" = 4 ] || [ "$t" = 10 ] || [ "$t" = 20 ] && shot "ad-$ADS-$(( $(date +%s) - t0 ))s"
     dump; local el=$(( $(date +%s) - t0 )) now; now=$(ui texts | cut -c1-200)
     echo "$now" | grep -qiE "video|reward" && kind=${kind%% video}" video"
-    if ui click "Close|Close ad|Continue to app|X|×" >/dev/null; then
+    if ui adclose >/dev/null; then
       if ! echo "$now" | grep -qiE "[0-9]+ ?(s|sec|seconds)\b|reward in|skip in" || [ "$el" -ge 30 ]; then
-        xy=$(ui click "Close|Close ad|Continue to app|X|×"); adb shell input tap $xy; sleep 2; break
+        xy=$(ui adclose); adb shell input tap $xy; sleep 2; break
       fi
     fi
     sleep 2
   done
   top | grep -q AdActivity && { adb shell input keyevent KEYCODE_BACK; sleep 2; }
+  ad_click_check "AD #$ADS $where"
   echo "$(ts),$kind,$where,$(( $(date +%s) - t0 )),$txt [$act]" >> "$OUT/ads.csv"
   log "AD #$ADS ($kind) on \"$where\", watched $(( $(date +%s) - t0 )) s: $txt"
   return 0
@@ -333,8 +334,16 @@ look_around() {
 READ=0; SAINTS=0; TYPES=0; TABS=0
 SAINT_NAMES=("ગંગાસતી" "ચારણ કવિ શ્રી ભગુભાઈ" "દેવાયત પંડિત" "નરસિંહ મહેતા" "પ્રેમાનંદ સ્વામી" "મીરાબાઈ" "લીરલ' બાઈ" "દયાનંદ સરસ્વતી")
 TYPE_NAMES=("આત્મજ્ઞાન ભજન" "કૃષ્ણ ભક્તિ ભજન" "ભક્તિ ભજન" "ભજન-આરતી" "યોગ ભજન" "રામ ભક્તિ ભજન" "લોક ભજન" "શિવ ભક્તિ ભજન" "ઉપદેશ ભજન" "પ્રાર્થના")
+a_login() {  # the app logged the test account out (run 56): log in again with it (never with Google)
+  dump; ui texts | grep -q "લૉગિન કરો" || return 0
+  local em pw; em=$(sed -n 's/^email: //p' "$OUT/account.txt" 2>/dev/null); pw=$(sed -n 's/^password: //p' "$OUT/account.txt" 2>/dev/null)
+  [ -n "$em" ] || { problem "logged out and no account.txt"; return 1; }
+  log "the app logged the test account out: logging in again ($em)"; shot "logged-out"
+  fill "ઈમેલ.*|Email.*" "$em" "email" && fill "પાસવર્ડ.*|Password.*" "$pw" "password" && tap "લૉગિન કરો" "login" >/dev/null
+  sleep 5; wait_ad "after login" 8; shot "after-login"
+}
 a_tab() {   # a bottom tab: ઘર સાખી AI રિફર નોટેશન
-  ensure_app "$1"; dump; local xy
+  ensure_app "$1"; a_login; dump; local xy
   xy=$(ui textat "$1") || { adb shell input keyevent KEYCODE_BACK; sleep 2; dump; xy=$(ui textat "$1"); } || { problem "no tab $1"; return 1; }
   adb shell input tap $xy; sleep 3; watch_ad "$1"; banners "$1"
 }
