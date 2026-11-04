@@ -37,6 +37,10 @@ on:
         description: Also download from APKPure/APKCombo (third-party; they have shipped modified apps)
         type: boolean
         default: false
+      repeat:
+        description: "When this run ends, start the same run again on a new phone (until explore/REPEAT is deleted or says stop)"
+        type: boolean
+        default: false
   push:
     paths:
       - .github/workflows/app-explore.yml
@@ -44,6 +48,7 @@ on:
 
 permissions:
   contents: read
+  actions: write     # only for "repeat": the next run of this workflow
 
 env:
   PACKAGES: ${{ inputs.packages || 'com.mechodal.alakhjoli com.expensetracker.renine' }}
@@ -294,6 +299,7 @@ jobs:
           import pathlib, sys
           from PIL import Image
           for f in pathlib.Path(sys.argv[1]).rglob("use-*.png"):
+              if "-ad-" in f.name or "-banner" in f.name: continue     # ads stay full size (ad analysis)
               im = Image.open(f).convert("RGB"); im.thumbnail((540, 1140)); im.save(f.with_suffix(".jpg"), quality=70); f.unlink()
           PY
           fi
@@ -311,3 +317,25 @@ jobs:
           # other runs store at the same time: take theirs first, up to 5 tries
           for t in 1 2 3 4 5; do git push -q origin HEAD:app-explore-results && break; git pull -q --rebase origin app-explore-results; sleep $((t * 5)); done
           git log -1 --format=%H origin/app-explore-results >/dev/null 2>&1; echo "Results stored: Bhautik-4B/Game-Auto, branch app-explore-results, $dest" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The owner (4 Nov): "until I say stop, keep running; when the 4:30 hours job is over, start
+  # another". The next run starts after this one, whatever its result, while explore/REPEAT on
+  # this branch says "on" (it is read from the branch now, so deleting it stops the chain).
+  again:
+    needs: explore
+    if: always() && inputs.repeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Start the same run again (explore/REPEAT says on)
+        run: |
+          r=$(gh api "repos/${{ github.repository }}/contents/explore/REPEAT?ref=${{ github.ref_name }}" -H "Accept: application/vnd.github.raw" 2>/dev/null || true)
+          echo "explore/REPEAT: ${r:-missing}"
+          echo "$r" | grep -qx "on" || { echo "Not repeating (explore/REPEAT is not on)." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
+          gh workflow run app-explore.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
+            -f packages="${{ inputs.packages }}" -f minutes="${{ inputs.minutes }}" -f android="${{ inputs.android }}" \
+            -f session_minutes="${{ inputs.session_minutes }}" -f gapps="${{ inputs.gapps }}" -f signup="${{ inputs.signup }}" \
+            -f apkpure="${{ inputs.apkpure }}" -f repeat=true
+          echo "Next run started for ${{ inputs.packages }} ($(TZ=Asia/Kolkata date '+%I:%M %p IST'))" | tee -a "$GITHUB_STEP_SUMMARY"

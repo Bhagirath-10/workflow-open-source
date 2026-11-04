@@ -55,12 +55,17 @@ watch_ad() {
   kind="full-screen"; echo "$txt" | grep -qiE "reward" && kind="rewarded"
   echo "$txt" | grep -qiE "video|sec|seconds|skip in" && kind="$kind video"
   shot "ad-$ADS"; local act; act=$(top)
-  for t in $(seq 1 30); do
-    [ "$t" = 5 ] && shot "ad-$ADS-later"                          # up to ~60 s: wait for the end or a close button
+  # Watched to the end as a person would (owner, 4 Nov: "view the whole ads"): never Skip; its Close
+  # or "Continue to app" only once the ad is over (no countdown left) or after 30 s; at most 2 minutes.
+  for t in $(seq 1 60); do
     top | grep -q AdActivity || break
-    dump
-    if ui click "Close|Close ad|Skip|Skip ad|Skip video|Continue to app|X|×" >/dev/null && [ $(( $(date +%s) - t0 )) -ge 6 ]; then
-      xy=$(ui click "Close|Close ad|Skip|Skip ad|Skip video|Continue to app|X|×"); adb shell input tap $xy; sleep 2; break
+    [ "$t" = 4 ] || [ "$t" = 10 ] || [ "$t" = 20 ] && shot "ad-$ADS-$(( $(date +%s) - t0 ))s"
+    dump; local el=$(( $(date +%s) - t0 )) now; now=$(ui texts | cut -c1-200)
+    echo "$now" | grep -qiE "video|reward" && kind=${kind%% video}" video"
+    if ui click "Close|Close ad|Continue to app|X|×" >/dev/null; then
+      if ! echo "$now" | grep -qiE "[0-9]+ ?(s|sec|seconds)\b|reward in|skip in" || [ "$el" -ge 30 ]; then
+        xy=$(ui click "Close|Close ad|Continue to app|X|×"); adb shell input tap $xy; sleep 2; break
+      fi
     fi
     sleep 2
   done
