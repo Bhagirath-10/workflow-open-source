@@ -89,6 +89,7 @@ walk(ET.parse(sys.argv[1]).getroot(), False)
 print(" ".join(out)[:160].replace(",", " "))
 PY2
 )" >> "$OUT/ads.csv"; }
+  return 0     # no banner is not a failure (a_tab stopped every round on it: run 43 read nothing)
 }
 ensure_app() {    # the app on screen (ads watched first); reopened when it is gone
   local i
