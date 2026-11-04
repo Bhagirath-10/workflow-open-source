@@ -224,11 +224,15 @@ jobs:
           git clone -q --depth 1 https://github.com/ayasa520/redroid-script rs
           cd rs; pip3 install -q -r requirements.txt 2>&1 | tail -2
           timeout 60 python3 redroid.py -h </dev/null | head -40
-          for opt in -g -mtg -lg; do
+          # OpenGApps (-g) is only for Android 11; on another version it builds an image WITHOUT Google
+          # apps (seen on Android 13). So: 11 tries -g first, the others MindTheGapps / LiteGapps, and only
+          # an image whose name says it has Google apps is used.
+          if [ "$OS_VER" = 11 ]; then opts="-g -mtg -lg"; else opts="-mtg -lg"; fi
+          for opt in $opts; do
             echo "== redroid.py -a $OS_VER.0.0 $opt"
             # never waits for a keyboard answer (yes to every question), at most 20 minutes per option
             yes | sudo -E timeout 1200 python3 redroid.py -a "$OS_VER.0.0" $opt 2>&1 | tail -40; echo "(exit ${PIPESTATUS[1]})"
-            img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -vE ':latest$|-latest$' | head -1)
+            img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -iE 'gapps' | head -1)
             [ -n "$img" ] && break
           done
           echo "image with Google Play services: ${img:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
