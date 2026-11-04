@@ -10,3 +10,12 @@ vivo Y73|vivo|vivo|V2059|2059|2400|409
 OPPO F19|OPPO|OPPO|CPH2219|OP4F7FL1|2400|409
 Motorola moto g60|motorola|motorola|moto g(60)|hanoip|2460|400
 Samsung Galaxy M31|samsung|samsung|SM-M315F|m31|2340|411
+Samsung Galaxy S21|samsung|samsung|SM-G991B|o1s|2400|421
+Samsung Galaxy A14|samsung|samsung|SM-A145F|a14|2408|400
+Xiaomi Redmi 12|Redmi|Xiaomi|23053RN02I|fire|2460|396
+Nothing Phone (1)|Nothing|Nothing|A063|Spacewar|2400|402
+iQOO Z7|iQOO|vivo|I2207|PD2282|2400|409
+Lava Agni 2|LAVA|LAVA|LXX505|Agni2|2400|394
+Tecno Spark 10|TECNO|TECNO|KI5q|TECNO-KI5q|2460|400
+Infinix Hot 30|Infinix|INFINIX|X6831|Infinix-X6831|2460|400
+Nokia G42|Nokia|HMD Global|TA-1581|Nokia G42|2400|400

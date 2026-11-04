@@ -390,3 +390,37 @@ jobs:
             -f session_minutes="${{ inputs.session_minutes }}" -f gapps="${{ inputs.gapps }}" -f signup="${{ inputs.signup }}" \
             -f apkpure="${{ inputs.apkpure }}" -f apk_list="${{ inputs.apk_list }}" -f repeat=true
           echo "Next run started for ${{ inputs.packages }} ($(TZ=Asia/Kolkata date '+%I:%M %p IST'))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The owner (4 Nov): finished runs are removed from this public repo, their logs saved first in the
+  # private repo (Bhautik-4B/Game-Auto, branch workflow-logs, one .log.gz per run). Runs still going
+  # are never touched; a run is deleted only after its log is pushed.
+  cleanup:
+    needs: explore
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRIV: ${{ secrets.PRIVATE_REPO || secrets.GAME_AUTO_TOKEN }}
+      R: ${{ github.repository }}
+    steps:
+      - name: Save the logs of finished runs in the private repo, then delete those runs here
+        run: |
+          set +e
+          url="https://x-access-token:$PRIV@github.com/Bhautik-4B/Game-Auto.git"
+          git clone -q --depth 1 --branch workflow-logs "$url" logs 2>/dev/null || { rm -rf logs; git init -q logs; git -C logs checkout -q -b workflow-logs; git -C logs remote add origin "$url"; }
+          mkdir -p logs/runs; done_ids=""
+          gh run list --repo "$R" --status completed --limit 60 --json databaseId,number,workflowName,displayTitle,conclusion,createdAt \
+            --jq '.[] | [.databaseId, .number, .workflowName, .displayTitle, .conclusion, .createdAt] | @tsv' > finished.tsv
+          while IFS=$'\t' read -r id num wf title concl created; do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            name="logs/runs/$(echo "$created" | cut -c1-10)-$(echo "$wf" | tr -c 'A-Za-z0-9' '-' | cut -c1-30)-run$num-$id"
+            { echo "workflow: $wf"; echo "run: #$num ($id), $concl, started $created"; echo "title: $title"; } > "$name.txt"
+            gh run view "$id" --repo "$R" --log 2>/dev/null | gzip -9 > "$name.log.gz"
+            done_ids="$done_ids $id"
+          done < finished.tsv
+          cd logs; git config user.name "Bhautik-4B"; git config user.email "4bornbhautik@gmail.com"
+          git add runs; git commit -q -m "Logs of $(echo $done_ids | wc -w) finished runs of $R ($(TZ=Asia/Kolkata date '+%d %b %Y, %I:%M %p IST'))" || exit 0
+          ok=no; for t in 1 2 3 4 5; do git push -q origin HEAD:workflow-logs && { ok=yes; break; }; git pull -q --rebase origin workflow-logs; sleep $((t * 5)); done
+          [ "$ok" = yes ] || { echo "logs not saved: nothing deleted"; exit 0; }
+          for id in $done_ids; do gh run delete "$id" --repo "$R" >/dev/null 2>&1 && echo "deleted run $id"; done | tee -a "$GITHUB_STEP_SUMMARY"
