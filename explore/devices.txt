@@ -1,0 +1,12 @@
+# Phone models the ad sessions pretend to be, in turn (owner, 4 Nov: "every time a new OS and a new
+# device, to see which ads come on which system"). All 1080 pixels wide, like the scripts expect.
+# name|brand|manufacturer|model|device|height|dpi
+Samsung Galaxy A52|samsung|samsung|SM-A525F|a52q|2400|411
+Xiaomi Redmi Note 10|Redmi|Xiaomi|M2101K7AI|mojito|2400|440
+OnePlus Nord CE 2|OnePlus|OnePlus|IV2201|OP556FL1|2400|409
+Google Pixel 5|google|Google|Pixel 5|redfin|2340|432
+realme 8|realme|realme|RMX3085|RMX3085L1|2400|411
+vivo Y73|vivo|vivo|V2059|2059|2400|409
+OPPO F19|OPPO|OPPO|CPH2219|OP4F7FL1|2400|409
+Motorola moto g60|motorola|motorola|moto g(60)|hanoip|2460|400
+Samsung Galaxy M31|samsung|samsung|SM-M315F|m31|2340|411
