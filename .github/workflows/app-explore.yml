@@ -82,6 +82,8 @@ jobs:
         run: |
           os=$ANDROID; dev="${{ inputs.device || 'Google Pixel 5' }}"
           vers=(10 11 12 13 14); [ "$os" = auto ] && os=${vers[$(( GITHUB_RUN_NUMBER % 5 ))]}
+          # Google apps exist for Android 11 (OpenGApps) and 12-14 (MindTheGapps) only (run 55: none for 10)
+          [ "$GAPPS" = true ] && [ "$os" = 10 ] && { os=11; echo "Android 10 has no Google apps here: Android 11"; }
           mapfile -t devs < <(grep -v '^#' explore/devices.txt | grep .)
           if [ "$dev" = auto ]; then line=${devs[$(( (GITHUB_RUN_NUMBER / 5 + GITHUB_RUN_NUMBER) % ${#devs[@]} ))]}
           else line=$(printf '%s\n' "${devs[@]}" | grep -m1 "^$dev|") || line=${devs[3]}; fi
@@ -227,7 +229,8 @@ jobs:
           # OpenGApps (-g) is only for Android 11; on another version it builds an image WITHOUT Google
           # apps (seen on Android 13). So: 11 tries -g first, the others MindTheGapps / LiteGapps, and only
           # an image whose name says it has Google apps is used.
-          if [ "$OS_VER" = 11 ]; then opts="-g -mtg -lg"; else opts="-mtg -lg"; fi
+          # (LiteGapps -lg is not tried: its SourceForge download fails its check and loops for 20 minutes, run 55)
+          if [ "$OS_VER" = 11 ]; then opts="-g -mtg"; else opts="-mtg"; fi
           for opt in $opts; do
             echo "== redroid.py -a $OS_VER.0.0 $opt"
             # never waits for a keyboard answer (yes to every question), at most 20 minutes per option
@@ -244,7 +247,7 @@ jobs:
             img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i redroid | grep -iE 'gapps' | head -1)
           fi
           echo "image with Google Play services: ${img:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
-          [ -n "$img" ] && echo "IMAGE=$img" >> "$GITHUB_ENV"
+          if [ -n "$img" ]; then echo "IMAGE=$img" >> "$GITHUB_ENV"; fi
 
       - name: Start Android (Redroid, arm64)
         run: |
