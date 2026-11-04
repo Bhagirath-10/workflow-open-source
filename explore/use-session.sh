@@ -133,9 +133,16 @@ add_txn() {   # add_txn Expense|Income <category> <note> <amount>
   local type=$1 cat=$2 note=$3 amt=$4
   go Home
   ensure_app "add"; dump
-  xy=$(ui click "\\+|Add Transaction") || xy="540 1980"
-  adb shell input tap $xy; sleep 3
-  tap "$type|Add $type" "$type" >/dev/null || { problem "no $type choice after +"; adb shell input keyevent KEYCODE_BACK; return 1; }
+  # The round + sits in the bottom bar, 80 px above the tab names: found from the "Home" tab, since
+  # its place changes with the screen height (a fixed 540,1980 missed it on 2460-high phones, run 51).
+  local hy; hy=$(ui textat "Home" | cut -d' ' -f2)
+  xy=$(ui click "\\+|Add Transaction") || xy="540 $(( ${hy:-2060} - 80 ))"
+  adb shell input tap $xy; sleep 3; dump
+  # The choice opens low on the screen (y 1700-1850 in good runs); Home's own Income/Expense labels are
+  # at the top (y ~940): only a choice in the lower half is taken (run 51 tapped Home's label instead).
+  local cy; cy=$(ui allat "$type|Add $type" | awk '$2 > 1200' | tail -1)
+  [ -n "$cy" ] || { problem "no $type choice after + (tapped $xy): $(ui texts | cut -c1-120)"; adb shell input keyevent KEYCODE_BACK; return 1; }
+  sleep 1; adb shell input tap $cy; sleep 3; log "  chose $type ($cy)"
   if [ "$type" = Expense ]; then
     pick "Category" "$cat" || problem "category $cat not picked"
   else
