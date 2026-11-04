@@ -62,7 +62,7 @@ jobs:
   explore:
     name: Explore apps on Android ${{ inputs.android || '11' }} (ARM)
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 300
+    timeout-minutes: 355    # GitHub allows 360: room for 4.5-hour sessions (270 min) plus setup
     steps:
       - uses: actions/checkout@v4
 
