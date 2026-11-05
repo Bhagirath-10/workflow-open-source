@@ -258,7 +258,8 @@ jobs:
           sudo modprobe ashmem_linux 2>/dev/null || true
           docker run -d --name phone --privileged --memory=6g -p 5555:5555 "${IMAGE:-redroid/redroid:$OS_VER.0.0-latest}" \
             androidboot.redroid_gpu_mode=guest androidboot.use_memfd=true androidboot.redroid_width=1080 androidboot.redroid_height=$DEV_HEIGHT androidboot.redroid_dpi=$DEV_DPI \
-            "ro.product.brand=$DEV_BRAND" "ro.product.manufacturer=$DEV_MAKER" "ro.product.model=$DEV_MODEL" "ro.product.device=$DEV_DEVICE" "ro.product.name=$DEV_DEVICE" >/dev/null
+            "ro.product.brand=$DEV_BRAND" "ro.product.manufacturer=$DEV_MAKER" "ro.product.model=$DEV_MODEL" "ro.product.device=$DEV_DEVICE" "ro.product.name=$DEV_DEVICE" \
+            "persist.sys.timezone=Asia/Kolkata" "ro.product.locale=en-IN" "persist.sys.locale=en-IN" >/dev/null   # an Indian phone (owner, 5 Nov)
           for i in $(seq 1 84); do adb connect localhost:5555 >/dev/null 2>&1; [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 5; done
           [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || { echo "::error::Android did not boot"; exit 1; }
           adb shell settings put global window_animation_scale 0
