@@ -29,7 +29,8 @@ human_type() {
 # Back hides the keyboard only if one is showing: on phones where none appears (Android 13/14 with
 # MindTheGapps, runs 113/114/118) Back left the sign-up form and closed the app.
 hide_kb() {
-  timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qE "mInputShown=true|isInputViewShown=true" \
+  # the keyboard window is visible (field names differ by Android version: runs 126/128 kept it open)
+  { timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qiE "mInputShown=true|InputViewShown=true|mImeWindowVis=[1-9]|mIsInputViewShown=true"; } \
     && { adb shell input keyevent KEYCODE_BACK; sleep 1; }
   return 0
 }
