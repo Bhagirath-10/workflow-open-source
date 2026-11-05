@@ -30,7 +30,7 @@ human_type() {
 # MindTheGapps, runs 113/114/118) Back left the sign-up form and closed the app.
 hide_kb() {
   # the keyboard window is visible (field names differ by Android version: runs 126/128 kept it open)
-  { timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qiE "mInputShown=true|InputViewShown=true|mImeWindowVis=[1-9]|mIsInputViewShown=true"; } \
+  { timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qiE "mInputShown=true|InputViewShown=true|mImeWindowVis=[23]|mIsInputViewShown=true"; } \
     && { adb shell input keyevent KEYCODE_BACK; sleep 1; }
   return 0
 }
