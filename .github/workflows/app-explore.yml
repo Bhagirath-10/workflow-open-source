@@ -252,6 +252,37 @@ jobs:
           echo "image with Google Play services: ${img:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ -n "$img" ]; then echo "IMAGE=$img" >> "$GITHUB_ENV"; fi
 
+      # India network (owner, 5 Nov: "inside GitHub we use a VPN for India"). For an app whose file
+      # explore/NETWORK-<package> says "india", the phone's traffic (and only the phone's: this machine's
+      # own link to GitHub stays as it is) goes through the WireGuard config in the secret INDIA_VPN.
+      # If India is asked for and the tunnel does not work, the run stops: it never falls back to the US.
+      - name: Indian internet for the phone (WireGuard VPN, secret INDIA_VPN)
+        env:
+          INDIA_VPN: ${{ secrets.INDIA_VPN }}
+        run: |
+          want=""; for p in $PACKAGES; do [ "$(cat "explore/NETWORK-$p" 2>/dev/null)" = india ] && want=india; done
+          [ "$want" = india ] || { echo "Network: GitHub's own (US)"; echo "NETWORK=us" >> "$GITHUB_ENV"; exit 0; }
+          [ -n "$INDIA_VPN" ] || { echo "::error::India network asked for, but the secret INDIA_VPN (a WireGuard config) is not set"; exit 1; }
+          sudo apt-get install -y -qq wireguard-tools >/dev/null 2>&1
+          # the tunnel without its own routes (Table = off) and without DNS changes on this machine
+          printf '%s\n' "$INDIA_VPN" | sed -E '/^\s*(DNS|Table|PostUp|PostDown|PreUp|PreDown)\s*=/d' \
+            | sed '/^\[Interface\]/a Table = off' | sudo tee /etc/wireguard/inv.conf >/dev/null
+          sudo chmod 600 /etc/wireguard/inv.conf
+          sudo wg-quick up inv || { echo "::error::the India VPN did not connect"; exit 1; }
+          # Docker's network (the phone) goes out through the tunnel; replies to this machine stay local
+          net=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Subnet}}'); echo "phone network $net"
+          sudo ip route add default dev inv table 51820
+          sudo ip route add "$net" dev docker0 table 51820
+          sudo ip rule add from "$net" lookup 51820 priority 100
+          sudo iptables -t nat -I POSTROUTING -s "$net" -o inv -j MASQUERADE
+          sudo iptables -I FORWARD -i docker0 -o inv -j ACCEPT; sudo iptables -I FORWARD -i inv -o docker0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+          # what an app on the phone network sees (a throwaway container on the same network)
+          c=$(docker run --rm curlimages/curl:8.10.1 -s -m 20 https://ipinfo.io/json 2>/dev/null)
+          country=$(echo "$c" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("country",""), d.get("city",""), d.get("org",""))' 2>/dev/null)
+          echo "Phone network through the VPN: ${country:-no answer}" | tee -a "$GITHUB_STEP_SUMMARY"
+          case "$country" in IN*) echo "NETWORK=india ($country)" >> "$GITHUB_ENV";;
+            *) echo "::error::the VPN does not come out in India ($country): stopping, no US traffic for an India run"; exit 1;; esac
+
       - name: Start Android (Redroid, arm64)
         run: |
           sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
@@ -277,7 +308,7 @@ jobs:
             for k in ro.product.manufacturer ro.product.brand ro.product.model ro.build.version.release ro.build.version.sdk ro.product.cpu.abi; do echo "$k: $(adb shell getprop $k | tr -d '\r')"; done
             echo "screen: $(adb shell wm size | tr -d '\r' | sed 's/.*: //'), $(adb shell wm density | tr -d '\r' | sed 's/.*: //') dpi"
             echo "Google Play services: $(adb shell pm list packages com.google.android.gms | tr -d '\r' | grep -c gms)"
-            echo "internet country (GitHub's machine, what ad networks see): $(curl -s -m 10 https://ipinfo.io/country || echo '?')"
+            echo "network: ${NETWORK:-us}; GitHub machine's own country: $(curl -s -m 10 https://ipinfo.io/country || echo '?')"
             echo "phone time zone: $(adb shell getprop persist.sys.timezone | tr -d '\r'), language: $(adb shell getprop persist.sys.locale | tr -d '\r')"
           } | tee out/device.txt | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Android $(adb shell getprop ro.build.version.release | tr -d '\r') ready (${IMAGE:-plain image}); Google Play services installed: $(adb shell pm list packages com.google.android.gms | tr -d '\r' | grep -c gms)" | tee -a "$GITHUB_STEP_SUMMARY"
