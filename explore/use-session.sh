@@ -27,7 +27,7 @@ echo "time,type,screen,seconds,advertiser/text" > "$OUT/ads.csv"
 top() { timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -oE '[a-zA-Z0-9_.]+/[^ }]+'; }
 # The phone's ad log for the whole session: Google Mobile Ads ("Ads") and the app's own messages.
 timeout 10 adb logcat -c 2>/dev/null
-( exec timeout $(( MIN * 60 + 1500 )) adb logcat -v time Ads:V flutter:V '*:S' > "$OUT/ads-logcat.txt" 2>/dev/null ) &
+( exec timeout $(( MIN * 60 + 1500 )) adb logcat -v time Ads:V flutter:V AndroidRuntime:E ActivityManager:W DEBUG:F '*:S' > "$OUT/ads-logcat.txt" 2>/dev/null ) &
 LOGCAT=$!; trap 'kill $LOGCAT 2>/dev/null' EXIT
 REOPENS=0; PROFILE=0; WCYCLE=0; BCYCLE=0; GCYCLE=0
 pause() { sleep $(( RANDOM % ($2 - $1 + 1) + $1 )); }       # a person's pause: pause <min s> <max s>
