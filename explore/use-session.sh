@@ -243,7 +243,9 @@ profile() {   # Home › "Hello, <name>" opens the Profile
 }
 edit_profile() {
   profile || return 1
-  tap "Edit Profile|Edit|Expense Tester" "Edit Profile" >/dev/null || { problem "no Edit Profile on the Profile"; go Home; return 1; }
+  # the name card ("Expense Tester" + the email on a second line) opens Edit Profile (run 124)
+  dump; local xy; xy=$(ui textat "Edit Profile|Edit|Expense Tester.*") || { problem "no Edit Profile on the Profile"; go Home; return 1; }
+  adb shell input tap $xy; sleep 3
   PROFILE=$((PROFILE + 1)); wait_ad "Edit Profile" 12; screen_log "edit-profile"
   if dump && ui click "Save|Update|Save Changes|Update Profile" >/dev/null; then
     fill "Phone.*|Mobile.*" "9409005692" "phone" >/dev/null 2>&1
@@ -297,7 +299,7 @@ goal_cycle() {    # Profile › Saving Goal: a goal made, then deleted
   profile || return 1
   tap "Saving Goal" "Saving Goal" >/dev/null || { problem "no Saving Goal on the Profile"; return 1; }
   wait_ad "Saving Goal" 6; screen_log "saving-goals"
-  tap "Add Goal|Create Goal|Add Saving Goal|New Goal|Add New Goal|Create New Goal|\\+|Add" "Add goal" >/dev/null || { dump; xy=$(ui click "\\+") && adb shell input tap $xy && sleep 3; }
+  tap "\\+ ?Add Goal|Add Goal|Create Goal|Add Saving Goal|New Goal|Add New Goal|Create New Goal|\\+|Add" "Add goal" >/dev/null || { dump; xy=$(ui click "\\+") && adb shell input tap $xy && sleep 3; }
   screen_log "goal-form"
   fill "Goal Name.*|Goal Title.*|Name.*|Title.*" "$g" "goal name" || { problem "no goal form"; adb shell input keyevent KEYCODE_BACK; return 1; }
   fill "Target Amount.*|Target.*|Goal Amount.*|Amount.*" "20000" "target amount"
