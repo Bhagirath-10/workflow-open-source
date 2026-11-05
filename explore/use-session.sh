@@ -193,7 +193,7 @@ edit_txn() {
   dump; ui fieldbelow "Amount.*" >/dev/null || { problem "no Edit on the entry screen"; adb shell input keyevent KEYCODE_BACK; return 1; }
   xy=$(ui fieldbelow "Amount.*"); adb shell input tap $xy; sleep 1
   adb shell input keyevent KEYCODE_MOVE_END; for _ in $(seq 1 8); do adb shell input keyevent KEYCODE_DEL; done
-  new=$(( (RANDOM % 90 + 10) * 10 )); adb shell input text "$new"; adb shell input keyevent KEYCODE_BACK; sleep 1
+  new=$(( (RANDOM % 90 + 10) * 10 )); adb shell input text "$new"; hide_kb; sleep 1
   shot "edit-filled"
   tap "Save|Update|Save Changes" "Save" >/dev/null || return 1
   dump
@@ -268,7 +268,7 @@ change_amount() {   # change_amount <label regex> <new amount>
   local xy; dump; xy=$(ui fieldbelow "$1") || return 1
   adb shell input tap $xy; sleep 1; adb shell input keyevent KEYCODE_MOVE_END
   for _ in $(seq 1 10); do adb shell input keyevent KEYCODE_DEL; done
-  adb shell input text "$2"; adb shell input keyevent KEYCODE_BACK; sleep 1
+  adb shell input text "$2"; hide_kb; sleep 1
 }
 wallet_cycle() {   # a wallet made, edited, deleted (a trip wallet)
   local w="Trip Wallet $1"; WCYCLE=$((WCYCLE + 1))
@@ -367,13 +367,21 @@ a_read_one() {  # on a list of bhajans: open one, read it (scroll slowly), come 
   local k; for k in 1 2 3; do sleep $(( RANDOM % 15 + 10 )); adb shell input swipe 540 1600 540 900 600; done   # reading, scrolling down
   READ=$((READ + 1)); a_back
 }
-a_saint() {
+a_saint() {  # a saint: mostly from the saints row on Home (that tap has its own ad, homeSantClick), sometimes from "see all"
   a_tab "ઘર" || return 1
-  a_open "બધા જુઓ" "all saints" || return 1                      # the first "see all" is the saints
-  local s=${SAINT_NAMES[$((RANDOM % ${#SAINT_NAMES[@]}))]}
-  a_open "$s" "$s" || { a_back; return 1; }
+  local s
+  if [ $((RANDOM % 3)) != 0 ]; then
+    HOME_SAINTS=("ગંગાસતી" "દયાનંદ સરસ્વતી" "દેવાયત પંડિત" "ચારણ કવિ શ્રી.*")
+    s=${HOME_SAINTS[$((RANDOM % ${#HOME_SAINTS[@]}))]}
+    a_open "$s" "saint $s (Home)" || return 1
+  else
+    a_open "બધા જુઓ" "all saints" || return 1                      # the first "see all" is the saints
+    dump; s=$(ui targets | grep -vE "ઘર|સાખી|\bAI\b|રિફર|નોટેશન|મેનુ|શોધો|\[" | sed -n "$(( RANDOM % 6 + 1 ))p" | cut -f2)
+    [ -n "$s" ] || { log "  saints list: $(ui texts | cut -c1-150)"; a_back; return 1; }
+    a_open "$(printf '%s' "$s" | sed 's/[.*+?()[\]|^$]/./g')" "saint $s (list)" || { a_back; return 1; }
+  fi
   SAINTS=$((SAINTS + 1)); dump; log "saint: $s: $(ui texts | cut -c1-150)"; shot "saint"
-  a_read_one; a_back; a_back
+  a_read_one; a_back
 }
 a_type() {
   a_tab "ઘર" || return 1

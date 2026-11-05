@@ -26,6 +26,13 @@ human_type() {
     sleep 0.$(( RANDOM % 4 + 1 ))
   done
 }
+# Back hides the keyboard only if one is showing: on phones where none appears (Android 13/14 with
+# MindTheGapps, runs 113/114/118) Back left the sign-up form and closed the app.
+hide_kb() {
+  timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qE "mInputShown=true|isInputViewShown=true" \
+    && { adb shell input keyevent KEYCODE_BACK; sleep 1; }
+  return 0
+}
 # tap <regex> <what>: the lowest clickable thing with that text (the button, not a title); a person
 # looks for a moment before tapping, and taps a few pixels off the exact centre.
 tap() {
@@ -43,7 +50,7 @@ fill() {
   [ -n "${xy:-}" ] || { say "  $TAG: no field \"$3\": $(ui texts | cut -c1-300)"; return 1; }
   adb shell input tap $xy; sleep 1
   human_type "$2"; sleep 1
-  adb shell input keyevent KEYCODE_BACK  # hide the keyboard, so the fields under it can be seen
+  hide_kb   # hide the keyboard, so the fields under it can be seen
   say "  $TAG: typed $3"; sleep 1
 }
 launch() {
