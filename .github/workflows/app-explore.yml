@@ -382,9 +382,13 @@ jobs:
     steps:
       - name: Start the same run again (explore/REPEAT says on)
         run: |
-          r=$(gh api "repos/${{ github.repository }}/contents/explore/REPEAT?ref=${{ github.ref_name }}" -H "Accept: application/vnd.github.raw" 2>/dev/null || true)
-          echo "explore/REPEAT: ${r:-missing}"
-          echo "$r" | grep -qx "on" || { echo "Not repeating (explore/REPEAT is not on)." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
+          # Per app: explore/REPEAT-<package> (on/stop) decides for that app; else explore/REPEAT for all
+          # (owner, 5 Nov: Expense Tracker on hold, Alakh Joli goes on).
+          f="explore/REPEAT-$(echo "${{ inputs.packages }}" | awk '{print $1}')"
+          r=$(gh api "repos/${{ github.repository }}/contents/$f?ref=${{ github.ref_name }}" -H "Accept: application/vnd.github.raw" 2>/dev/null || true)
+          [ -n "$r" ] || { f=explore/REPEAT; r=$(gh api "repos/${{ github.repository }}/contents/$f?ref=${{ github.ref_name }}" -H "Accept: application/vnd.github.raw" 2>/dev/null || true); }
+          echo "$f: ${r:-missing}"
+          echo "$r" | grep -qx "on" || { echo "Not repeating ($f is not on)." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
           gh workflow run app-explore.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
             -f packages="${{ inputs.packages }}" -f minutes="${{ inputs.minutes }}" -f android="${{ inputs.android }}" -f device="${{ inputs.device }}" \
             -f session_minutes="${{ inputs.session_minutes }}" -f gapps="${{ inputs.gapps }}" -f signup="${{ inputs.signup }}" \
