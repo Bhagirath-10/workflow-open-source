@@ -89,6 +89,8 @@ jobs:
           vers=(10 11 12 13 14); [ "$os" = auto ] && os=${vers[$(( RANDOM % 5 ))]}
           # Google apps exist for Android 11 (OpenGApps) and 12-14 (MindTheGapps) only (run 55: none for 10)
           [ "$GAPPS" = true ] && [ "$os" = 10 ] && { os=11; echo "Android 10 has no Google apps here: Android 11"; }
+          # Alakh Joli (Google apps) closes during sign-up on Android 13/14 (runs 138, 139, 148): 11 or 12 for now
+          if [ "$GAPPS" = true ] && [ "${{ inputs.android }}" = auto ] && [ "$os" -ge 13 ]; then os=$(( 11 + RANDOM % 2 )); echo "Google-apps phone: Android $os (13/14 sign-up not working yet)"; fi
           mapfile -t devs < <(grep -v '^#' explore/devices.txt | grep .)
           if [ "$dev" = auto ]; then line=${devs[$(( RANDOM % ${#devs[@]} ))]}
           else line=$(printf '%s\n' "${devs[@]}" | grep -m1 "^$dev|") || line=${devs[3]}; fi
