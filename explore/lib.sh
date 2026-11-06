@@ -82,6 +82,14 @@ close_ad_notap() {
     echo "$top" | grep -q AdActivity || return 0
   done
   say "  ${TAG:-explore}: the ad did not close with Back: app closed and opened again (no tap on the ad)"
+  # Safety (6 Nov, Expense Tracker): if an app's ads cannot be closed without a tap, closing and
+  # reopening it shows a new ad each time. After 5 such closes the session ends, so no ad loop.
+  local n; n=$(( $(cat "$OUT/.forced-closes" 2>/dev/null || echo 0) + 1 )); echo $n > "$OUT/.forced-closes"
+  if [ "$n" -gt 5 ]; then
+    say "STOP: this app's ads do not close with Back ($n times): session ended so that no more ads are loaded"
+    echo "STOPPED: ads do not close with Back; session ended after $n forced closes" >> "$OUT/summary.txt"
+    adb shell am force-stop "$PKG"; exit 4
+  fi
   adb shell am force-stop "$PKG"; sleep 2
   local act; act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
   timeout 30 adb shell am start -n "$act" >/dev/null 2>&1; sleep 6
