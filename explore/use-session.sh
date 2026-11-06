@@ -62,14 +62,15 @@ watch_ad() {
     [ "$t" = 4 ] || [ "$t" = 10 ] || [ "$t" = 20 ] && shot "ad-$ADS-$(( $(date +%s) - t0 ))s"
     dump; local el=$(( $(date +%s) - t0 )) now; now=$(ui texts | cut -c1-200)
     echo "$now" | grep -qiE "video|reward" && kind=${kind%% video}" video"
-    if ui adclose >/dev/null; then
+    # over (its close is offered and no countdown is left) or 30 s watched: closed WITHOUT a tap
+    if ui adclose >/dev/null || [ "$el" -ge 30 ]; then
       if ! echo "$now" | grep -qiE "[0-9]+ ?(s|sec|seconds)\b|reward in|skip in" || [ "$el" -ge 30 ]; then
-        xy=$(ui adclose); adb shell input tap $xy; sleep 2; break
+        close_ad_notap; break
       fi
     fi
     sleep 2
   done
-  top | grep -q AdActivity && { adb shell input keyevent KEYCODE_BACK; sleep 2; }
+  top | grep -q AdActivity && close_ad_notap
   ad_click_check "AD #$ADS $where"
   echo "$(ts),$kind,$where,$(( $(date +%s) - t0 )),$txt [$act]" >> "$OUT/ads.csv"
   log "AD #$ADS ($kind) on \"$where\", watched $(( $(date +%s) - t0 )) s: $txt"

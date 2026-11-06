@@ -29,6 +29,9 @@ human_type() {
 # Back hides the keyboard only if one is showing: on phones where none appears (Android 13/14 with
 # MindTheGapps, runs 113/114/118) Back left the sign-up form and closed the app.
 hide_kb() {
+  # Android 13+ (SDK 33+): never Back here (it closed Alakh Joli's sign-up form even with this check,
+  # runs 138/139); the form is scrolled instead when a field is under the keyboard (fill does that)
+  [ "$(timeout 10 adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')" -ge 33 ] 2>/dev/null && return 0
   # the keyboard window is visible (field names differ by Android version: runs 126/128 kept it open)
   { timeout 10 adb shell dumpsys input_method 2>/dev/null | grep -qiE "mInputShown=true|InputViewShown=true|mImeWindowVis=[23]|mIsInputViewShown=true"; } \
     && { adb shell input keyevent KEYCODE_BACK; sleep 1; }
@@ -58,7 +61,32 @@ launch() {
   local act; act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
   timeout 30 adb shell am start -n "$act" >/dev/null 2>&1; sleep 8
 }
-# Startup ad (AdMob full screen): Back closes it.
+# Guard on every tap: if a full-screen ad is on top at that moment, the tap is NOT sent (it would
+# land on the ad); the ad is closed without a tap instead.
+adb() {
+  if [ "${1:-} ${2:-} ${3:-}" = "shell input tap" ] && timeout 10 adb shell dumpsys activity activities 2>/dev/null \
+       | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:" | grep -q AdActivity; then
+    say "  ${TAG:-explore}: a full-screen ad was on screen: tap skipped, ad closed without a tap"
+    close_ad_notap; return 0
+  fi
+  command adb "$@"
+}
+# A full-screen ad is closed WITHOUT ANY TAP on the screen (owner's AdMob safety): even a tap on
+# "Continue to app" opened the Play Store once (run 140, ChatGPT install ad, 6 Nov). Back, up to 3
+# times; if the ad is still there, the app is closed (like swiping it away) and opened again.
+close_ad_notap() {
+  local i top
+  for i in 1 2 3; do
+    adb shell input keyevent KEYCODE_BACK; sleep 2
+    top=$(timeout 15 adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "mResumedActivity|topResumedActivity|ResumedActivity:")
+    echo "$top" | grep -q AdActivity || return 0
+  done
+  say "  ${TAG:-explore}: the ad did not close with Back: app closed and opened again (no tap on the ad)"
+  adb shell am force-stop "$PKG"; sleep 2
+  local act; act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tr -d '\r' | tail -1)
+  timeout 30 adb shell am start -n "$act" >/dev/null 2>&1; sleep 6
+}
+# Startup ad (AdMob full screen): closed without a tap (close_ad_notap).
 skip_ad() {
   local i
   for i in 1 2 3; do
@@ -67,9 +95,8 @@ skip_ad() {
     dump
     # every startup ad is noted too (ad analysis): its words and a screenshot
     echo "$(TZ=Asia/Kolkata date '+%I:%M:%S %p'),$TAG,$(ui texts | cut -c1-200 | tr ',' ' ')" >> "$OUT/startup-ads.csv"; shot "startup-ad"
-    if xy=$(ui adclose); then say "  $TAG: startup ad, tap its close button ($xy)"; adb shell input tap $xy
-    else say "  $TAG: startup ad, Back"; adb shell input keyevent KEYCODE_BACK; fi
-    sleep 3
+    say "  $TAG: startup ad, closed without touching it (Back, else the app closed)"; close_ad_notap
+    sleep 1
   done
 }
 # After closing an ad: if a store or browser came up instead of the app, the ad was opened by mistake.
