@@ -84,11 +84,13 @@ jobs:
       - name: Pick the Android version and the phone model
         run: |
           os=$ANDROID; dev="${{ inputs.device || 'Google Pixel 5' }}"
-          vers=(10 11 12 13 14); [ "$os" = auto ] && os=${vers[$(( GITHUB_RUN_NUMBER % 5 ))]}
+          # auto = picked at random each run (owner, 6 Nov: "randomly device and OS"), not in turn
+          RANDOM=$(( GITHUB_RUN_ID % 32768 + $(date +%s) % 1000 ))
+          vers=(10 11 12 13 14); [ "$os" = auto ] && os=${vers[$(( RANDOM % 5 ))]}
           # Google apps exist for Android 11 (OpenGApps) and 12-14 (MindTheGapps) only (run 55: none for 10)
           [ "$GAPPS" = true ] && [ "$os" = 10 ] && { os=11; echo "Android 10 has no Google apps here: Android 11"; }
           mapfile -t devs < <(grep -v '^#' explore/devices.txt | grep .)
-          if [ "$dev" = auto ]; then line=${devs[$(( (GITHUB_RUN_NUMBER / 5 + GITHUB_RUN_NUMBER) % ${#devs[@]} ))]}
+          if [ "$dev" = auto ]; then line=${devs[$(( RANDOM % ${#devs[@]} ))]}
           else line=$(printf '%s\n' "${devs[@]}" | grep -m1 "^$dev|") || line=${devs[3]}; fi
           IFS='|' read -r name brand maker model device height dpi <<< "$line"
           { echo "OS_VER=$os"; echo "DEV_NAME=$name"; echo "DEV_BRAND=$brand"; echo "DEV_MAKER=$maker"; echo "DEV_MODEL=$model"; echo "DEV_DEVICE=$device"
@@ -353,7 +355,9 @@ jobs:
               if [ $rc = 0 ] && [ "${SESSION:-0}" = 0 ]; then timeout 900 bash explore/sample-data.sh "$p" "out/$p" || true; fi
             fi
             if [ "${SESSION:-0}" -gt 0 ]; then
-              timeout $(( SESSION * 60 + 1200 )) bash explore/use-session.sh "$p" "out/$p" "$SESSION" || echo "session stopped after its time limit" >> "out/$p/notes.txt"
+              # a person does not use an app for the same time every day: 60-100% of the session time
+              len=$(( SESSION * (60 + RANDOM % 41) / 100 )); echo "$p: session of $len minutes (of $SESSION)" | tee -a "$GITHUB_STEP_SUMMARY"
+              timeout $(( len * 60 + 1200 )) bash explore/use-session.sh "$p" "out/$p" "$len" || echo "session stopped after its time limit" >> "out/$p/notes.txt"
               cat "out/$p/summary.txt" 2>/dev/null | tee -a "$GITHUB_STEP_SUMMARY"
             else
               timeout $(( MINUTES * 60 + 600 )) bash explore/explore.sh "$p" "out/$p" "$MINUTES" || echo "explore stopped after its time limit" >> "out/$p/notes.txt"
@@ -408,7 +412,7 @@ jobs:
     needs: explore
     if: always() && inputs.repeat
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -421,6 +425,8 @@ jobs:
           [ -n "$r" ] || { f=explore/REPEAT; r=$(gh api "repos/${{ github.repository }}/contents/$f?ref=${{ github.ref_name }}" -H "Accept: application/vnd.github.raw" 2>/dev/null || true); }
           echo "$f: ${r:-missing}"
           echo "$r" | grep -qx "on" || { echo "Not repeating ($f is not on)." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
+          # a random pause (5-30 minutes) before the next phone starts, like a person coming back later
+          w=$(( 5 + RANDOM % 26 )); echo "next run in $w minutes"; sleep $(( w * 60 ))
           gh workflow run app-explore.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
             -f packages="${{ inputs.packages }}" -f minutes="${{ inputs.minutes }}" -f android="${{ inputs.android }}" -f device="${{ inputs.device }}" \
             -f session_minutes="${{ inputs.session_minutes }}" -f gapps="${{ inputs.gapps }}" -f signup="${{ inputs.signup }}" \
