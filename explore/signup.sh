@@ -39,16 +39,26 @@ say "## signup: new test account for $PKG: $NAME, $EMAIL"
 launch; skip_ad; shot start
 case "$PKG" in
   com.mechodal.alakhjoli)
-    tap ".*રજિસ્ટર.*|.*[Rr]egister.*" "Register (રજિસ્ટર કરો)" || exit 1
-    shot register
-    fill "નામ.*|Name.*" "$NAME" "name" &&
-    fill "ઈમેલ.*|Email.*" "$EMAIL" "email" &&
-    fill "મોબાઇલ.*|Mobile.*" "$MOBILE" "mobile number" &&
-    fill "પાસવર્ડ \*|પાસવર્ડ|Password.*" "$PASS" "password" &&
-    fill "તમારો પાસવર્ડ ફરીથી.*|Confirm.*|Re-?enter.*" "$PASS" "password again" || { shot form-failed; exit 1; }
-    shot form-filled
-    adb shell input swipe 540 1600 540 600 400; sleep 1
-    tap "રજિસ્ટર કરો|Register" "the Register button" || exit 1
+    # Up to 3 tries: if the app closes while the form is filled (Back meant for the keyboard left it,
+    # runs 198/199/201), it is opened again and the form started over.
+    ok=no
+    for try in 1 2 3; do
+      if tap ".*રજિસ્ટર.*|.*[Rr]egister.*" "Register (રજિસ્ટર કરો)"; then
+        shot register
+        if fill "નામ.*|Name.*" "$NAME" "name" &&
+           fill "ઈમેલ.*|Email.*" "$EMAIL" "email" &&
+           fill "મોબાઇલ.*|Mobile.*" "$MOBILE" "mobile number" &&
+           fill "પાસવર્ડ \*|પાસવર્ડ|Password.*" "$PASS" "password" &&
+           fill "તમારો પાસવર્ડ ફરીથી.*|Confirm.*|Re-?enter.*" "$PASS" "password again"; then
+          shot form-filled
+          adb shell input swipe 540 1600 540 600 400; sleep 1
+          tap "રજિસ્ટર કરો|Register" "the Register button" && { ok=yes; break; }
+        fi
+      fi
+      say "  signup: try $try did not finish (the app may have closed): opening it again"; shot "form-failed-$try"
+      timeout 15 adb shell am force-stop "$PKG"; launch; skip_ad
+    done
+    [ "$ok" = yes ] || exit 1
     ;;
   com.expensetracker.renine)
     dump; ui click "Get Started" >/dev/null && tap "Get Started" "Get Started"
