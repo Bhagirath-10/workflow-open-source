@@ -29,6 +29,7 @@ human_type() {
 # Back hides the keyboard only if one is showing: on phones where none appears (Android 13/14 with
 # MindTheGapps, runs 113/114/118) Back left the sign-up form and closed the app.
 hide_kb() {
+  [ -n "${NOKB:-}" ] && return 0      # a sign-up retry: no Back at all (the form is scrolled instead)
   # The keyboard is open when the screen dump shows the keyboard app's own items (Gboard / AOSP
   # keyboard, e.g. its suggestion strip). Only then is Back pressed: Back without a keyboard closed
   # Alakh Joli's sign-up form (runs 138/139/148), and a missed keyboard hid the next field (169/179/183/184).

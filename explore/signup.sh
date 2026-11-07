@@ -55,7 +55,8 @@ case "$PKG" in
           tap "રજિસ્ટર કરો|Register" "the Register button" && { ok=yes; break; }
         fi
       fi
-      say "  signup: try $try did not finish (the app may have closed): opening it again"; shot "form-failed-$try"
+      say "  signup: try $try did not finish (the app may have closed): opening it again, without Back for the keyboard"; shot "form-failed-$try"
+      NOKB=1
       timeout 15 adb shell am force-stop "$PKG"; launch; skip_ad
     done
     [ "$ok" = yes ] || exit 1
